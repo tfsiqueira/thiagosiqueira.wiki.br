@@ -12,3 +12,20 @@ a {
 ::selection {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
+
+.container {
+  max-width: min(1040px, 94vw);
+  padding: 40px clamp(16px, 4vw, 48px);
+}
+
+@media (max-width: 900px) {
+  .container {
+    padding: 28px clamp(14px, 4vw, 28px);
+  }
+}
+
+@media (max-width: 684px) {
+  .container {
+    padding: 20px 16px;
+  }
+}
