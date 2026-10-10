@@ -1,0 +1,59 @@
+baseURL = "https://thiagosiqueira.wiki.br/"
+locale = "pt-br"
+title = "Thiago Siqueira — wiki"
+theme = "terminal"
+pagination.pagerSize = 10
+
+[markup.goldmark.renderer]
+  unsafe = true
+
+[markup.highlight]
+  noClasses = false
+
+[params]
+  contentTypeName = "posts"
+  showMenuItems = 2
+  fullWidthTheme = false
+  centerTheme = false
+  showLanguageSelector = false
+  autoCover = true
+  showLastUpdated = false
+  readingTime = true
+
+[params.twitter]
+  creator = ""
+  site = ""
+
+[languages]
+  [languages.pt-br]
+    label = "Português"
+    title = "Thiago Siqueira — wiki"
+
+    [languages.pt-br.params]
+      subtitle = "notas e estudos sobre segurança, redes e sistemas"
+      owner = "Thiago Siqueira"
+      keywords = "segurança, redes, sistemas, cybersecurity, tls, pki"
+      copyright = ""
+      menuMore = "Ver mais"
+      readMore = "Ler mais"
+      readOtherPosts = "Ver outros artigos"
+      newerPosts = "Mais recentes"
+      olderPosts = "Mais antigos"
+      missingContentMessage = "Página não encontrada..."
+      missingBackButtonLabel = "Voltar para a página inicial"
+      minuteReadingTime = "min de leitura"
+      words = "palavras"
+
+      [languages.pt-br.params.logo]
+        logoText = "thiago@wiki:~$"
+        logoHomeLink = "/"
+
+      [languages.pt-br.menu]
+        [[languages.pt-br.menu.main]]
+          identifier = "posts"
+          name = "Artigos"
+          url = "/posts"
+        [[languages.pt-br.menu.main]]
+          identifier = "tags"
+          name = "Tags"
+          url = "/tags"

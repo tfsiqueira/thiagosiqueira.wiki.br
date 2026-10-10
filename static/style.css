@@ -1,0 +1,14 @@
+:root {
+  --background: #0a0f0c;
+  --foreground: #d6f5df;
+  --accent: #39ff88;
+  --radius: 2px;
+}
+
+a {
+  text-decoration-color: var(--accent);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
