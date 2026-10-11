@@ -115,12 +115,13 @@ a {
   .header__inner {
     flex-wrap: wrap;
     row-gap: 10px;
-    justify-content: flex-start;
+    justify-content: center;
     column-gap: 16px;
   }
 
   .header__logo {
     flex: 1 1 100%;
+    justify-content: center;
   }
 
   .logo {
