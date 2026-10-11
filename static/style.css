@@ -111,4 +111,18 @@ a {
   .year-progress {
     display: none;
   }
+
+  .header__inner {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  .header__logo {
+    flex: 1 1 100%;
+  }
+
+  .logo {
+    white-space: nowrap;
+    width: fit-content;
+  }
 }
