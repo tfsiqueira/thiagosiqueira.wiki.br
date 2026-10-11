@@ -115,6 +115,8 @@ a {
   .header__inner {
     flex-wrap: wrap;
     row-gap: 10px;
+    justify-content: flex-start;
+    column-gap: 16px;
   }
 
   .header__logo {
