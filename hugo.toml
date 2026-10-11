@@ -3,6 +3,8 @@ locale = "pt-br"
 title = "Thiago Siqueira — wiki"
 theme = "terminal"
 pagination.pagerSize = 10
+defaultContentLanguage = "pt-br"
+defaultContentLanguageInSubdir = false
 
 [markup.goldmark.renderer]
   unsafe = true
@@ -15,7 +17,7 @@ pagination.pagerSize = 10
   showMenuItems = 2
   fullWidthTheme = false
   centerTheme = true
-  showLanguageSelector = false
+  showLanguageSelector = true
   autoCover = true
   showLastUpdated = false
   readingTime = true
@@ -28,6 +30,7 @@ pagination.pagerSize = 10
   [languages.pt-br]
     label = "Português"
     title = "Thiago Siqueira — wiki"
+    weight = 1
 
     [languages.pt-br.params]
       subtitle = "notas e estudos sobre segurança, redes e sistemas"
@@ -45,7 +48,7 @@ pagination.pagerSize = 10
       words = "palavras"
 
       [languages.pt-br.params.logo]
-        logoText = "thiago@wiki:~$"
+        logoText = "siqueira@wiki:~$"
         logoHomeLink = "/"
 
       [languages.pt-br.menu]
@@ -57,3 +60,71 @@ pagination.pagerSize = 10
           identifier = "tags"
           name = "Tags"
           url = "/tags"
+
+  [languages.en]
+    label = "English"
+    title = "Thiago Siqueira — wiki"
+    weight = 2
+
+    [languages.en.params]
+      subtitle = "notes and research on security, networks, and systems"
+      owner = "Thiago Siqueira"
+      keywords = "security, networks, systems, cybersecurity, tls, pki"
+      copyright = ""
+      menuMore = "Show more"
+      readMore = "Read more"
+      readOtherPosts = "Read other posts"
+      newerPosts = "Newer posts"
+      olderPosts = "Older posts"
+      missingContentMessage = "Page not found..."
+      missingBackButtonLabel = "Back to home"
+      minuteReadingTime = "min read"
+      words = "words"
+
+      [languages.en.params.logo]
+        logoText = "siqueira@wiki:~$"
+        logoHomeLink = "/en/"
+
+      [languages.en.menu]
+        [[languages.en.menu.main]]
+          identifier = "posts"
+          name = "Posts"
+          url = "/en/posts"
+        [[languages.en.menu.main]]
+          identifier = "tags"
+          name = "Tags"
+          url = "/en/tags"
+
+  [languages.es]
+    label = "Español"
+    title = "Thiago Siqueira — wiki"
+    weight = 3
+
+    [languages.es.params]
+      subtitle = "notas e investigación sobre seguridad, redes y sistemas"
+      owner = "Thiago Siqueira"
+      keywords = "seguridad, redes, sistemas, cybersecurity, tls, pki"
+      copyright = ""
+      menuMore = "Ver más"
+      readMore = "Leer más"
+      readOtherPosts = "Ver otros artículos"
+      newerPosts = "Más recientes"
+      olderPosts = "Más antiguos"
+      missingContentMessage = "Página no encontrada..."
+      missingBackButtonLabel = "Volver al inicio"
+      minuteReadingTime = "min de lectura"
+      words = "palabras"
+
+      [languages.es.params.logo]
+        logoText = "siqueira@wiki:~$"
+        logoHomeLink = "/es/"
+
+      [languages.es.menu]
+        [[languages.es.menu.main]]
+          identifier = "posts"
+          name = "Artículos"
+          url = "/es/posts"
+        [[languages.es.menu.main]]
+          identifier = "tags"
+          name = "Tags"
+          url = "/es/tags"

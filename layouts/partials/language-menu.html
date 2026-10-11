@@ -1,0 +1,21 @@
+{{ $translations := .AllTranslations }}
+{{ if not (len $translations) }}
+  {{ $translations = $.Site.Home.AllTranslations }}
+{{ end }}
+{{ $order := slice "pt-br" "es" "en" }}
+{{ $count := 0 }}
+<ul class="menu menu--desktop menu--language-inline">
+  {{ range $code := $order }}
+    {{ range $translations }}
+      {{ if eq .Language.Lang $code }}
+        {{ if gt $count 0 }}<li class="menu__lang-sep" aria-hidden="true">/</li>{{ end }}
+        {{ if eq .Language.Lang $.Language.Lang }}
+          <li class="menu__lang-item is-active"><span>{{ upper .Language.Lang }}</span></li>
+        {{ else }}
+          <li class="menu__lang-item"><a href="{{ .Permalink }}">{{ upper .Language.Lang }}</a></li>
+        {{ end }}
+        {{ $count = (add $count 1) }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+</ul>

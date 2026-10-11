@@ -1,5 +1,6 @@
 +++
 title = "Como um cliente valida a autenticidade de um domínio durante o handshake TLS"
+translationKey = "tls-handshake-domain-validation"
 date = "2026-10-10"
 author = "Thiago Siqueira"
 tags = ["tls", "pki", "criptografia", "openssl", "redes"]
@@ -55,7 +56,6 @@ openssl version -a
 Na máquina usada no exercício, a saída relevante foi:
 
 ```text
-OpenSSL 3.6.3 9 Jun 2026
 OPENSSLDIR: "/opt/homebrew/etc/openssl@3"
 ```
 
@@ -166,7 +166,7 @@ cert-01 diz que foi emitido por Amazon RSA 2048 M04
 mas o cliente ainda precisa verificar se a assinatura realmente foi feita pela chave privada daquela CA
 ```
 
-## Pergunta 3: como eu sei que o leaf pertence ao domínio acessado?
+## Pergunta 3: como eu sei que o leaf é válido para o domínio acessado?
 
 O certificado leaf não é aceito apenas porque está no início da cadeia. Ele precisa representar o hostname correto.
 
@@ -310,31 +310,9 @@ Isso já levanta uma nova pergunta:
 Como um certificado pode representar a Amazon Root CA 1 e, ao mesmo tempo, ser assinado pela Starfield?
 ```
 
-Antes de responder, eu confirmo que nenhum dos três certificados enviados pelo servidor era, sozinho, uma root self-signed capaz de encerrar a validação:
+Mas, por enquanto, a resposta da pergunta atual já está no `issuer`: o último certificado enviado pelo servidor ainda aponta para outra CA. Portanto, ele não é a root self-signed final.
 
-```bash
-for cert in cert-*.pem; do
-  echo "===== $cert ====="
-  openssl x509 -in "$cert" -noout -subject -issuer
-  openssl verify -CAfile "$cert" "$cert"
-  echo
-done
-```
-
-Os três falharam com:
-
-```text
-error 20 at 0 depth lookup: unable to get local issuer certificate
-```
-
-Isso significa:
-
-- o leaf depende do intermediate;
-- o intermediate depende da Amazon Root CA 1;
-- o `cert-03.pem` depende da Starfield;
-- nenhum deles, isoladamente, encerra a cadeia.
-
-Então a resposta é:
+A resposta é:
 
 ```text
 o servidor não enviou a root final que o OpenSSL usou como trust anchor, isto é, como o ponto final já confiado localmente para encerrar a validação
@@ -370,7 +348,7 @@ depth=2: C=US, O=Amazon, CN=Amazon Root CA 1
 
 Essa saída é extremamente interessante.
 
-O leaf e o intermediate aparecem como `untrusted` porque vieram do servidor. Isso não significa que sejam maliciosos. Significa apenas que eles não são trust anchors locais.
+O leaf e o intermediate aparecem como `untrusted` porque foram fornecidos ao OpenSSL como material auxiliar para construir a cadeia, e não como trust anchors. Neste experimento, esse material veio do servidor. Isso não significa que sejam maliciosos.
 
 Já o `depth=2`, `Amazon Root CA 1`, não aparece como `untrusted`.
 
@@ -383,7 +361,7 @@ o servidor enviou:
 Leaf -> Amazon RSA 2048 M04 -> Amazon Root CA 1 cross-signed
 
 o OpenSSL validou:
-Leaf -> Amazon RSA 2048 M04 -> Amazon Root CA 1 self-signed local
+Leaf -> Amazon RSA 2048 M04 -> Amazon Root CA 1 local
 ```
 
 Eu ainda preciso explicar com calma o que significa `cross-signed`. Por enquanto, o ponto importante é que o certificado enviado pelo servidor não foi o certificado que encerrou a validação.
@@ -400,37 +378,24 @@ O cliente escolhe o caminho que consegue validar até uma trust anchor local.
 
 ## Pergunta 7: onde essa trust anchor local vivia?
 
-Eu precisava descobrir qual trust store o OpenSSL estava usando.
-
-Eu executo:
-
-```bash
-openssl version -d
-openssl version -a | grep OPENSSLDIR
-env | grep -E '^SSL_CERT_(FILE|DIR)='
-ls -l /opt/homebrew/etc/openssl@3
-ls -l /opt/homebrew/etc/openssl@3/cert.pem
-```
-
-A saída relevante foi:
+No começo da PoC, o comando `openssl version -a` já havia mostrado que o OpenSSL instalado via Homebrew usava:
 
 ```text
 OPENSSLDIR: "/opt/homebrew/etc/openssl@3"
-/opt/homebrew/etc/openssl@3/cert.pem -> ../ca-certificates/cert.pem
 ```
 
-Ou seja, naquele ambiente, o OpenSSL usava:
+Agora essa pista passa a importar. Dentro desse diretório, o bundle de CAs confiáveis usado por esse OpenSSL estava em:
 
 ```text
 /opt/homebrew/etc/openssl@3/cert.pem
 ```
 
-como bundle de CAs confiáveis.
-
 Eu torno a validação explícita usando esse bundle diretamente:
 
 ```bash
 openssl verify \
+  -no-CApath \
+  -no-CAstore \
   -CAfile /opt/homebrew/etc/openssl@3/cert.pem \
   -show_chain \
   -verify_hostname mercadopago.com.br \
@@ -523,7 +488,7 @@ O resultado conceitual foi:
 | Campo | `cert-03.pem` | `roots/root-022.pem` |
 |---|---|---|
 | Subject | Amazon Root CA 1 | Amazon Root CA 1 |
-| Issuer | Starfield Services Root CA - G2 | Amazon Root CA 1 |
+| Issuer | Starfield Services Root Certificate Authority - G2 | Amazon Root CA 1 |
 | Fingerprint | Diferente | Diferente |
 
 Isso prova que são certificados diferentes.
@@ -538,15 +503,15 @@ Se são certificados diferentes, por que ambos servem para validar a mesma CA?
 
 ## Pergunta 10: o que é igual entre eles?
 
-Eu comparo o SPKI (Subject Public Key Info) de ambos:
+Eu comparo o hash do SPKI (Subject Public Key Info) de ambos:
 
 ```bash
-echo "===== SPKI cert-03.pem ====="
+echo "===== hash do SPKI cert-03.pem ====="
 openssl x509 -in cert-03.pem -pubkey -noout \
   | openssl pkey -pubin -outform DER \
   | openssl dgst -sha256
 
-echo "===== SPKI root local ====="
+echo "===== hash do SPKI root local ====="
 openssl x509 -in roots/root-022.pem -pubkey -noout \
   | openssl pkey -pubin -outform DER \
   | openssl dgst -sha256
@@ -561,7 +526,7 @@ SHA2-256(stdin)= fbe3018031f9586bcbf41727e417b7d1c45c2f47f93be372a17b96b50757d5a
 
 O fingerprint do certificado inteiro era diferente.
 
-O SPKI era igual.
+O hash do SPKI era igual.
 
 Isso significa que os dois certificados carregavam a mesma chave pública.
 
@@ -570,8 +535,8 @@ SPKI é a estrutura do certificado que descreve a chave pública: qual algoritmo
 Essa é a diferença fundamental:
 
 ```text
-fingerprint = hash do certificado inteiro
-SPKI        = hash da estrutura da chave pública
+fingerprint  = hash do certificado inteiro
+hash do SPKI = hash da estrutura da chave pública
 ```
 
 Se qualquer campo do certificado mudar, o fingerprint muda:
@@ -607,11 +572,15 @@ Ela carrega a mesma chave pública da Amazon Root CA 1, mas foi assinada pela St
 O processo conceitual é:
 
 ```text
-1. Amazon gera a chave pública da Amazon Root CA 1.
+1. Amazon gera o par de chaves da Amazon Root CA 1.
 2. Amazon cria um certificado self-signed para essa chave.
-3. Starfield cria outro certificado para a mesma chave pública da Amazon Root CA 1.
-4. Esse segundo certificado é assinado pela Starfield.
+3. Para obter uma versão cross-signed, a Amazon prepara uma solicitação de certificação para a Starfield, normalmente representada por um CSR.
+4. Esse CSR carrega a chave pública da Amazon Root CA 1 e é assinado com a chave privada correspondente, provando que a Amazon controla aquela chave.
+5. A Starfield usa essa solicitação para emitir outro certificado para a mesma chave pública da Amazon Root CA 1.
+6. Esse segundo certificado é assinado pela Starfield.
 ```
+
+Aqui vale um cuidado de linguagem: não é o certificado que "gera" o CSR. É a entidade operadora da CA, neste caso a Amazon, que cria essa solicitação usando a chave privada associada à Amazon Root CA 1. O ponto conceitual importante é que a Starfield não recebe a chave privada da Amazon; ela recebe uma solicitação que contém a chave pública e uma prova de posse da chave privada correspondente.
 
 Assim surgem dois certificados diferentes:
 
@@ -620,7 +589,7 @@ Amazon Root CA 1 self-signed
 Amazon Root CA 1 cross-signed
 ```
 
-Eles representam a mesma CA lógica porque carregam a mesma chave pública.
+Neste caso, eles representam a mesma CA lógica porque têm o mesmo subject, carregam a mesma chave pública e ambos são certificados de CA.
 
 Eles são certificados diferentes porque foram emitidos em contextos diferentes e assinados por autoridades diferentes.
 
@@ -648,7 +617,7 @@ No cliente moderno, a validação termina cedo, porque ele já conhece a Amazon 
 
 No cliente legado, a validação continua até a Starfield, porque é nela que ele confia localmente.
 
-## Pergunta 13: por que o cliente moderno consegue “trocar” o certificado cross-signed pela root local?
+## Pergunta 13: por que o cliente moderno consegue encerrar na root local em vez de continuar pela versão cross-signed?
 
 Porque a assinatura do intermediate foi feita pela chave privada da Amazon Root CA 1.
 
@@ -666,7 +635,9 @@ chave pública da Amazon Root CA 1 cross-signed
 
 É por isso que ambas conseguem validar a assinatura do `Amazon RSA 2048 M04`.
 
-O cliente moderno não precisa continuar até a Starfield porque já possui localmente a chave pública da Amazon Root CA 1 em uma trust anchor confiável.
+O cliente não substitui literalmente um certificado por outro. O path builder encontra uma candidata local confiável com o mesmo subject e a mesma chave pública e constrói um caminho alternativo até ela.
+
+O cliente moderno não precisa continuar até a Starfield porque já possui localmente uma trust anchor da Amazon Root CA 1 que carrega aquela mesma chave pública.
 
 Já o cliente legado usa o certificado cross-signed como um intermediário adicional:
 
@@ -704,13 +675,13 @@ e:
 CA:TRUE
 ```
 
-Um leaf normalmente aparece com `CA:FALSE`. Isso significa que ele pode representar um servidor, mas não pode assinar outro certificado abaixo dele.
+Um leaf normalmente aparece com `CA:FALSE`. Isso significa que ele pode representar um servidor, mas não pode ser aceito como uma CA capaz de assinar outro certificado abaixo dele em uma cadeia válida.
 
-Um intermediate normalmente aparece com `CA:TRUE`. Isso significa que ele pode atuar como autoridade certificadora e assinar certificados leaf.
+Um intermediate normalmente aparece com `CA:TRUE`. Isso significa que ele pode ser aceito como autoridade certificadora e assinar certificados leaf.
 
-Essa distinção impede que alguém pegue um certificado comum de servidor e tente usá-lo como se fosse uma CA intermediária.
+Essa distinção impede que alguém pegue um certificado comum de servidor e tente usá-lo como se fosse uma CA intermediária. A chave privada correspondente ainda conseguiria produzir uma assinatura criptográfica, mas a cadeia deveria ser rejeitada porque aquele certificado não tem permissão para atuar como CA.
 
-Além disso, uma CA pode carregar uma restrição como `pathlen=0`. Nesse caso, ela pode assinar leafs, mas não pode assinar outro intermediate abaixo dela. Essa é uma forma de limitar a profundidade da cadeia e impedir que a hierarquia cresça indefinidamente.
+Além disso, uma CA pode carregar uma restrição como `pathlen:0`. Nesse caso, ela pode assinar certificados leaf, mas não pode assinar outro intermediate abaixo dela. Essa é uma forma de limitar a profundidade da cadeia e impedir que a hierarquia cresça indefinidamente.
 
 Outra extensão relacionada é `keyUsage`. Mesmo que um certificado tenha `CA:TRUE`, ele normalmente também precisa permitir assinatura de certificados para atuar como CA.
 
@@ -726,7 +697,7 @@ Ao final da PoC, eu consegui provar:
 4. o OpenSSL não encerrou a validação nesse certificado enviado pelo servidor;
 5. o OpenSSL encontrou localmente uma Amazon Root CA 1 self-signed;
 6. a versão local e a versão cross-signed tinham fingerprints diferentes;
-7. ambas tinham o mesmo SPKI;
+7. ambas tinham o mesmo hash de SPKI;
 8. portanto, eram certificados diferentes representando a mesma CA lógica.
 
 ## Modelo mental final
@@ -749,16 +720,16 @@ Certificado não é a mesma coisa que chave pública.
 
 Um certificado é um documento assinado.
 
-Uma chave pública é a identidade criptográfica carregada por esse documento.
+Uma chave pública é o material criptográfico que esse documento associa a uma entidade.
 
 Por isso, dois certificados podem:
 
 - ter issuers diferentes;
 - ter números seriais diferentes;
 - ter fingerprints diferentes;
-- e ainda assim representar a mesma autoridade certificadora.
+- e, quando preservam a mesma chave pública e continuam sendo certificados de CA, ainda assim representar a mesma autoridade certificadora.
 
-Em TLS, confiar em um domínio não significa confiar em um arquivo isolado. Significa confiar em um caminho de assinaturas que termina em uma raiz já aceita localmente pelo cliente.
+Em TLS, confiar em um domínio não significa confiar em um arquivo isolado. Significa verificar que o hostname pedido aparece no leaf e confiar em um caminho de assinaturas que termina em uma trust anchor já aceita localmente pelo cliente.
 
 ## Referência rápida dos termos usados
 
@@ -772,18 +743,20 @@ Em TLS, confiar em um domínio não significa confiar em um arquivo isolado. Sig
 | SNI (Server Name Indication) | Extensão do TLS que informa ao servidor qual hostname o cliente quer acessar |
 | PEM (Privacy-Enhanced Mail) | Formato textual usado para representar certificados e chaves |
 | Leaf | Certificado do servidor final, mais próximo do domínio acessado |
-| Intermediate | CA intermediária usada para assinar leafs |
+| Intermediate | CA intermediária usada para assinar certificados leaf |
 | Root CA | CA no topo da hierarquia de confiança |
 | CN (Common Name) | Atributo histórico de nome dentro do certificado |
 | SAN (Subject Alternative Name) | Extensão que lista os hostnames válidos para o certificado |
-| CSR (Certificate Signing Request) | Pedido de emissão que carrega a chave pública do solicitante e os nomes desejados |
-| basicConstraints | Extensão que indica se um certificado pode atuar como CA e quantas CAs podem existir abaixo dele |
-| keyUsage | Extensão que indica quais operações criptográficas o certificado pode executar |
+| CSR (Certificate Signing Request) | Pedido de emissão que carrega a chave pública do solicitante e os atributos desejados para o certificado |
+| basicConstraints | Extensão que indica se um certificado pode atuar como CA e, quando presente, limita quantas CAs adicionais podem existir abaixo dele |
+| keyUsage | Extensão que indica para quais operações criptográficas a chave do certificado pode ser usada |
 | CRL (Certificate Revocation List) | Lista publicada por uma CA com certificados revogados |
 | OCSP (Online Certificate Status Protocol) | Protocolo para consultar o status de revogação de um certificado |
 | Trust store | Conjunto local de CAs confiáveis disponíveis para o cliente |
 | Trust anchor | Certificado ou chave confiável que encerra uma validação concreta |
 | SPKI (Subject Public Key Info) | Estrutura do certificado que descreve a chave pública |
 | Fingerprint | Hash do certificado inteiro |
+| pathlen | Restrição em um certificado de CA que limita quantas CAs intermediárias adicionais podem existir abaixo dele na cadeia |
+| Path building | Processo pelo qual o cliente monta um caminho de certificados, do leaf até uma trust anchor local, a partir do material disponível |
 | Self-signed | Certificado assinado pela própria chave privada da entidade que representa |
 | Cross-signed | Certificado de uma CA assinado por outra CA |

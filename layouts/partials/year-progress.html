@@ -1,0 +1,26 @@
+<div class="year-progress" id="year-progress">
+  <div class="year-progress__bar">
+    <div class="year-progress__fill" id="year-progress-fill"></div>
+    <div class="year-progress__empty"></div>
+  </div>
+</div>
+<script>
+(function () {
+  var now = new Date();
+  var start = new Date(now.getFullYear(), 0, 1);
+  var end = new Date(now.getFullYear() + 1, 0, 1);
+  var dayOfYear = Math.floor((now - start) / 86400000) + 1;
+  var daysInYear = Math.round((end - start) / 86400000);
+  var percent = Math.round((dayOfYear / daysInYear) * 100);
+  var remaining = daysInYear - dayOfYear;
+
+  var el = document.getElementById("year-progress");
+  var fill = document.getElementById("year-progress-fill");
+  var label = document.getElementById("year-progress-label");
+  if (!fill) return;
+
+  fill.style.flex = "0 0 " + percent + "%";
+  if (label) label.textContent = now.getFullYear() + " " + percent + "% in Progress";
+  if (el) el.title = dayOfYear + "/" + daysInYear + " dias · faltam " + remaining;
+})();
+</script>

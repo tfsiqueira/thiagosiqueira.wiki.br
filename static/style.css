@@ -29,3 +29,86 @@ a {
     padding: 20px 16px;
   }
 }
+
+.menu--language-inline,
+.menu__lang-inline {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.menu__lang-sep {
+  opacity: 0.4;
+  padding: 0 4px;
+}
+
+.menu__lang-item a,
+.menu__lang-item span {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--background);
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+
+.menu__lang-item a:hover {
+  text-decoration: underline;
+}
+
+.menu__lang-item.is-active span {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: var(--background);
+  font-weight: bold;
+}
+
+.header__logo::after {
+  content: none;
+}
+
+.header__year-row {
+  text-align: center;
+  padding: 4px 0;
+}
+
+.year-progress {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  margin-left: 10px;
+}
+
+.year-progress__bar {
+  display: flex;
+  flex: 1;
+  height: 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.year-progress__fill {
+  background: repeating-linear-gradient(90deg, var(--accent), var(--accent) 2px, transparent 0, transparent 10px);
+}
+
+.year-progress__empty {
+  flex: 1;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 25%, var(--background)), color-mix(in srgb, var(--accent) 25%, var(--background)) 2px, transparent 0, transparent 10px);
+}
+
+.year-progress__label {
+  color: var(--accent);
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+@media (max-width: 684px) {
+  .year-progress {
+    display: none;
+  }
+}
