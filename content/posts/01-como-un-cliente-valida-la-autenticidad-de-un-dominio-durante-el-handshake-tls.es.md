@@ -87,13 +87,7 @@ file {print > file}
 ' s_client.txt
 ```
 
-El resultado fue:
-
-```text
-cert-01.pem
-cert-02.pem
-cert-03.pem
-```
+El resultado fue `cert-01.pem`, `cert-02.pem` y `cert-03.pem`.
 
 Hasta aquí, lo único que sé es que *el servidor envió tres certificados*.
 
@@ -119,19 +113,9 @@ done
 
 La salida observada fue:
 
-```text
-===== cert-01.pem =====
-subject=CN=www.mercadopago.com.br
-issuer=C=US, O=Amazon, CN=Amazon RSA 2048 M04
-
-===== cert-02.pem =====
-subject=C=US, O=Amazon, CN=Amazon RSA 2048 M04
-issuer=C=US, O=Amazon, CN=Amazon Root CA 1
-
-===== cert-03.pem =====
-subject=C=US, O=Amazon, CN=Amazon Root CA 1
-issuer=C=US, ST=Arizona, L=Scottsdale, O=Starfield Technologies, Inc., CN=Starfield Services Root Certificate Authority - G2
-```
+- **cert-01.pem** — `subject=CN=www.mercadopago.com.br`; `issuer=C=US, O=Amazon, CN=Amazon RSA 2048 M04`
+- **cert-02.pem** — `subject=C=US, O=Amazon, CN=Amazon RSA 2048 M04`; `issuer=C=US, O=Amazon, CN=Amazon Root CA 1`
+- **cert-03.pem** — `subject=C=US, O=Amazon, CN=Amazon Root CA 1`; `issuer=C=US, ST=Arizona, L=Scottsdale, O=Starfield Technologies, Inc., CN=Starfield Services Root Certificate Authority - G2`
 
 Con esto ya puedo armar una primera lectura:
 
@@ -161,12 +145,7 @@ Verifico el SAN (Subject Alternative Name) del leaf:
 openssl x509 -in cert-01.pem -noout -ext subjectAltName
 ```
 
-Salida:
-
-```text
-X509v3 Subject Alternative Name:
-    DNS:www.mercadopago.com.br, DNS:mercadopago.com.br
-```
+Salida: `X509v3 Subject Alternative Name: DNS:www.mercadopago.com.br, DNS:mercadopago.com.br`.
 
 Esto responde una pregunta importante:
 
@@ -192,12 +171,7 @@ Una autoridad certificadora, o CA, comienza generando un par de claves: una clav
 
 La clave privada se usa para firmar certificados. La clave pública se distribuye dentro de los certificados para que los clientes puedan verificar esas firmas.
 
-En la cima de la jerarquía, una root CA, es decir, la autoridad certificadora raíz, crea un certificado para sí misma:
-
-```text
-subject = Root CA
-issuer  = Root CA
-```
+En la cima de la jerarquía, una root CA, es decir, la autoridad certificadora raíz, crea un certificado para sí misma, con `subject = Root CA` e `issuer = Root CA`.
 
 Este es un certificado self-signed, es decir, firmado por la propia clave privada de la CA que representa.
 
@@ -248,19 +222,9 @@ A primera vista, `cert-03.pem` parece una root porque su `subject` es `Amazon Ro
 
 Pero no es una root self-signed.
 
-Mira de nuevo:
+Mira de nuevo: `subject=C=US, O=Amazon, CN=Amazon Root CA 1`; `issuer=C=US, ST=Arizona, L=Scottsdale, O=Starfield Technologies, Inc., CN=Starfield Services Root Certificate Authority - G2`.
 
-```text
-subject=C=US, O=Amazon, CN=Amazon Root CA 1
-issuer=C=US, ST=Arizona, L=Scottsdale, O=Starfield Technologies, Inc., CN=Starfield Services Root Certificate Authority - G2
-```
-
-Si fuera self-signed, esperaría:
-
-```text
-subject = Amazon Root CA 1
-issuer  = Amazon Root CA 1
-```
+Si fuera self-signed, esperaría `subject = Amazon Root CA 1` e `issuer = Amazon Root CA 1`.
 
 Pero el `issuer` es Starfield.
 
@@ -292,15 +256,11 @@ openssl verify \
   cert-01.pem
 ```
 
-Salida:
+Salida: `cert-01.pem: OK`. La cadena (`Chain`) mostrada fue:
 
-```text
-cert-01.pem: OK
-Chain:
-depth=0: CN=www.mercadopago.com.br (untrusted)
-depth=1: C=US, O=Amazon, CN=Amazon RSA 2048 M04 (untrusted)
-depth=2: C=US, O=Amazon, CN=Amazon Root CA 1
-```
+- `depth=0: CN=www.mercadopago.com.br (untrusted)`
+- `depth=1: C=US, O=Amazon, CN=Amazon RSA 2048 M04 (untrusted)`
+- `depth=2: C=US, O=Amazon, CN=Amazon Root CA 1`
 
 Esta salida es extremadamente interesante.
 
@@ -391,13 +351,7 @@ for cert in roots/root-*.pem; do
 done
 ```
 
-Encuentro:
-
-```text
-roots/root-022.pem
-subject=C=US, O=Amazon, CN=Amazon Root CA 1
-issuer=C=US, O=Amazon, CN=Amazon Root CA 1
-```
+Encuentro `roots/root-022.pem`, con `subject=C=US, O=Amazon, CN=Amazon Root CA 1` e `issuer=C=US, O=Amazon, CN=Amazon Root CA 1`.
 
 Esa era la versión self-signed local de `Amazon Root CA 1`.
 
@@ -454,12 +408,9 @@ openssl x509 -in roots/root-022.pem -pubkey -noout \
   | openssl dgst -sha256
 ```
 
-Salida:
+Salida, idéntica en ambos casos:
 
-```text
-SHA2-256(stdin)= fbe3018031f9586bcbf41727e417b7d1c45c2f47f93be372a17b96b50757d5a2
-SHA2-256(stdin)= fbe3018031f9586bcbf41727e417b7d1c45c2f47f93be372a17b96b50757d5a2
-```
+`SHA2-256(stdin)= fbe3018031f9586bcbf41727e417b7d1c45c2f47f93be372a17b96b50757d5a2`
 
 El fingerprint del certificado completo era diferente.
 
@@ -486,21 +437,11 @@ Pero si la clave pública sigue siendo la misma, el SPKI sigue siendo igual.
 
 ## Pregunta 11: ¿qué significa cross-signed, al final?
 
-Una root self-signed de Amazon Root CA 1 tiene:
-
-```text
-subject = Amazon Root CA 1
-issuer  = Amazon Root CA 1
-```
+Una root self-signed de Amazon Root CA 1 tiene `subject = Amazon Root CA 1` e `issuer = Amazon Root CA 1`.
 
 Es un certificado emitido por la propia Amazon Root CA 1 para su propia clave pública.
 
-La versión cross-signed, en cambio, tiene:
-
-```text
-subject = Amazon Root CA 1
-issuer  = Starfield Services Root Certificate Authority - G2
-```
+La versión cross-signed, en cambio, tiene `subject = Amazon Root CA 1` e `issuer = Starfield Services Root Certificate Authority - G2`.
 
 Lleva la misma clave pública de Amazon Root CA 1, pero fue firmada por Starfield.
 

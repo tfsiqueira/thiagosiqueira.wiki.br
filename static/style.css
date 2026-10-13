@@ -129,3 +129,9 @@ a {
     width: fit-content;
   }
 }
+
+p code,
+li code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
