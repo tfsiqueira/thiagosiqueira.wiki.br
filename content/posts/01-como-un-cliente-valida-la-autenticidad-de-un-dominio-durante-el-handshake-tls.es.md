@@ -15,9 +15,7 @@ Cuando abrimos `https://mercadopago.com.br` en el navegador, o cuando una aplica
 
 Antes de que la conexión sea aceptada, cliente y servidor pasan por el handshake, la negociación inicial del TLS en la que se acuerdan parámetros criptográficos y se valida la identidad del servidor. Es en ese momento que surge la pregunta:
 
-```text
-¿Cómo sabe el cliente que está hablando con el servidor legítimo de ese dominio?
-```
+*¿Cómo sabe el cliente que está hablando con el servidor legítimo de ese dominio?*
 
 Es común resumir TLS (Transport Layer Security) como "el protocolo que cifra la conexión". Esa definición no está mal, pero está incompleta. El cifrado, por sí solo, no prueba identidad. Un atacante también puede establecer una conexión cifrada con el cliente. Lo que importa es saber si la clave pública presentada del otro lado pertenece, de hecho, al dominio al que el cliente pretendía acceder.
 
@@ -27,11 +25,9 @@ Este artículo parte de una PoC (Proof of Concept) real que realicé con `mercad
 
 El hilo conductor será siempre el mismo:
 
-```text
-¿Qué envió el servidor?
-¿Qué verificó el cliente?
-¿En qué momento decidió confiar?
-```
+- *¿Qué envió el servidor?*
+- *¿Qué verificó el cliente?*
+- *¿En qué momento decidió confiar?*
 
 ## Antes de empezar: qué quise reproducir
 
@@ -53,11 +49,7 @@ cd ~/tmp/cert-lab-mercadopago
 openssl version -a
 ```
 
-En la máquina usada para el ejercicio, la salida relevante fue:
-
-```text
-OPENSSLDIR: "/opt/homebrew/etc/openssl@3"
-```
+En la máquina usada para el ejercicio, la salida relevante fue `OPENSSLDIR: "/opt/homebrew/etc/openssl@3"`.
 
 Ese detalle parece pequeño, pero será importante más adelante. El OpenSSL de Homebrew usa su propio bundle de CAs. No necesariamente consulta el mismo trust store usado por las APIs nativas de macOS, por Chrome, por Java o por una aplicación Android.
 
@@ -103,11 +95,7 @@ cert-02.pem
 cert-03.pem
 ```
 
-Hasta aquí, lo único que sé es:
-
-```text
-el servidor envió tres certificados
-```
+Hasta aquí, lo único que sé es que *el servidor envió tres certificados*.
 
 Todavía no sé cuál es el leaf, cuál es el intermediate y si alguno de ellos es una root.
 
@@ -161,10 +149,7 @@ El campo `issuer` es solo una declaración dentro del certificado. Lo que realme
 
 En otras palabras:
 
-```text
-cert-01 dice que fue emitido por Amazon RSA 2048 M04
-pero el cliente todavía necesita verificar si la firma realmente fue hecha con la clave privada de esa CA
-```
+*Cert-01 dice que fue emitido por Amazon RSA 2048 M04, pero el cliente todavía necesita verificar si la firma realmente fue hecha con la clave privada de esa CA.*
 
 ## Pregunta 3: ¿cómo sé que el leaf es válido para el dominio accedido?
 
@@ -185,9 +170,7 @@ X509v3 Subject Alternative Name:
 
 Esto responde una pregunta importante:
 
-```text
-¿El certificado leaf cubre el hostname que accedí?
-```
+*¿El certificado leaf cubre el hostname que accedí?*
 
 Sí.
 
@@ -199,20 +182,13 @@ También existen certificados con wildcard, como `*.mercadopago.com.br`. En ese 
 
 Este es un punto importante: la autenticación TLS no es solo "la cadena fue firmada por una CA confiable". También es:
 
-```text
-¿esa cadena confiable representa el hostname que pedí?
-```
+*¿Esa cadena confiable representa el hostname que pedí?*
 
 ## Pregunta 4: ¿cómo nace una cadena como esta?
 
 Antes de continuar con la PoC, vale la pena entender cómo se crearon estos certificados.
 
-Una autoridad certificadora, o CA, comienza generando un par de claves:
-
-```text
-clave privada de la CA
-clave pública de la CA
-```
+Una autoridad certificadora, o CA, comienza generando un par de claves: una clave privada de la CA y una clave pública de la CA.
 
 La clave privada se usa para firmar certificados. La clave pública se distribuye dentro de los certificados para que los clientes puedan verificar esas firmas.
 
@@ -240,37 +216,21 @@ En el caso de un certificado público para dominio, la CA todavía necesita vali
 
 El esquema queda así:
 
-```text
-Root CA
-  firma
-Intermediate CA
-  firma
-Leaf certificate
-```
+**Root CA → firma → Intermediate CA → firma → Leaf certificate**
 
 En el caso de Mercado Pago:
 
-```text
-Amazon Root CA 1
-  firma
-Amazon RSA 2048 M04
-  firma
-www.mercadopago.com.br
-```
+**Amazon Root CA 1 → firma → Amazon RSA 2048 M04 → firma → www.mercadopago.com.br**
 
 En términos criptográficos:
 
-```text
-firma del leaf         -> hecha con la clave privada del intermediate
-firma del intermediate -> hecha con la clave privada de la root
-```
+- firma del leaf → hecha con la clave privada del intermediate
+- firma del intermediate → hecha con la clave privada de la root
 
 En la validación, el cliente hace el camino inverso:
 
-```text
-usa la clave pública del intermediate para validar el leaf
-usa la clave pública de la root para validar el intermediate
-```
+- usa la clave pública del intermediate para validar el leaf
+- usa la clave pública de la root para validar el intermediate
 
 Pero la validación no se detiene en las firmas. El cliente también necesita verificar:
 
@@ -306,17 +266,13 @@ Pero el `issuer` es Starfield.
 
 Esto ya plantea una nueva pregunta:
 
-```text
-¿Cómo puede un certificado representar a Amazon Root CA 1 y, al mismo tiempo, estar firmado por Starfield?
-```
+*¿Cómo puede un certificado representar a Amazon Root CA 1 y, al mismo tiempo, estar firmado por Starfield?*
 
 Pero, por ahora, la respuesta a la pregunta actual ya está en el `issuer`: el último certificado enviado por el servidor todavía apunta a otra CA. Entonces no es la root self-signed final.
 
 La respuesta es:
 
-```text
-el servidor no envió la root final que OpenSSL usó como trust anchor, es decir, como el punto final ya confiado localmente para cerrar la validación
-```
+*El servidor no envió la root final que OpenSSL usó como trust anchor, es decir, como el punto final ya confiado localmente para cerrar la validación.*
 
 ## Pregunta 6: si el servidor no envió la root final, ¿cómo pasó la validación?
 
@@ -356,21 +312,15 @@ Eso indica que OpenSSL encontró localmente una `Amazon Root CA 1` confiable y c
 
 En otras palabras:
 
-```text
-el servidor envió:
-Leaf -> Amazon RSA 2048 M04 -> Amazon Root CA 1 cross-signed
+El servidor envió: **Leaf → Amazon RSA 2048 M04 → Amazon Root CA 1 cross-signed**.
 
-OpenSSL validó:
-Leaf -> Amazon RSA 2048 M04 -> Amazon Root CA 1 local
-```
+OpenSSL validó: **Leaf → Amazon RSA 2048 M04 → Amazon Root CA 1 local**.
 
 Todavía necesito explicar con calma qué significa `cross-signed`. Por ahora, el punto importante es que el certificado enviado por el servidor no fue el certificado que cerró la validación.
 
 Esta es una de las ideas más importantes de todo el artículo:
 
-```text
-la cadena presentada por el servidor no tiene que ser idéntica a la cadena elegida por el cliente
-```
+*La cadena presentada por el servidor no tiene que ser idéntica a la cadena elegida por el cliente.*
 
 El servidor entrega material para que el cliente construya un camino.
 
@@ -378,17 +328,9 @@ El cliente elige el camino que consigue validar hasta una trust anchor local.
 
 ## Pregunta 7: ¿dónde vivía esa trust anchor local?
 
-Al comienzo de la PoC, el comando `openssl version -a` ya había mostrado que el OpenSSL instalado vía Homebrew usaba:
+Al comienzo de la PoC, el comando `openssl version -a` ya había mostrado que el OpenSSL instalado vía Homebrew usaba `OPENSSLDIR: "/opt/homebrew/etc/openssl@3"`.
 
-```text
-OPENSSLDIR: "/opt/homebrew/etc/openssl@3"
-```
-
-Ahora esa pista pasa a importar. Dentro de ese directorio, el bundle de CAs confiables usado por este OpenSSL estaba en:
-
-```text
-/opt/homebrew/etc/openssl@3/cert.pem
-```
+Ahora esa pista pasa a importar. Dentro de ese directorio, el bundle de CAs confiables usado por este OpenSSL estaba en `/opt/homebrew/etc/openssl@3/cert.pem`.
 
 Hago la validación explícita usando ese bundle directamente:
 
@@ -461,10 +403,7 @@ Esa era la versión self-signed local de `Amazon Root CA 1`.
 
 Aquí aparece una distinción importante:
 
-```text
-una root no es confiable porque sea self-signed;
-es confiable porque fue agregada al trust store del cliente.
-```
+*Una root no es confiable porque sea self-signed; es confiable porque fue agregada al trust store del cliente.*
 
 Cualquier persona puede generar un certificado self-signed. Lo que convierte una root en trust anchor es la decisión local del sistema, runtime o aplicación de confiar en ella.
 
@@ -497,9 +436,7 @@ Fingerprint es el hash del certificado completo. Si cualquier detalle del certif
 
 Pero todavía faltaba responder:
 
-```text
-Si son certificados diferentes, ¿por qué ambos sirven para validar la misma CA?
-```
+*Si son certificados diferentes, ¿por qué ambos sirven para validar la misma CA?*
 
 ## Pregunta 10: ¿qué es igual entre ellos?
 
@@ -534,10 +471,8 @@ SPKI es la estructura del certificado que describe la clave pública: qué algor
 
 Esa es la diferencia fundamental:
 
-```text
-fingerprint  = hash del certificado completo
-hash del SPKI = hash de la estructura de la clave pública
-```
+- **Fingerprint**: hash del certificado completo
+- **Hash del SPKI**: hash de la estructura de la clave pública
 
 Si cualquier campo del certificado cambia, el fingerprint cambia:
 
@@ -571,23 +506,16 @@ Lleva la misma clave pública de Amazon Root CA 1, pero fue firmada por Starfiel
 
 El proceso conceptual es:
 
-```text
 1. Amazon genera el par de claves de Amazon Root CA 1.
 2. Amazon crea un certificado self-signed para esa clave.
 3. Para obtener una versión cross-signed, Amazon prepara una solicitud de certificación para Starfield, normalmente representada por un CSR.
 4. Ese CSR lleva la clave pública de Amazon Root CA 1 y está firmado con la clave privada correspondiente, probando que Amazon controla esa clave.
 5. Starfield usa esa solicitud para emitir otro certificado para la misma clave pública de Amazon Root CA 1.
 6. Ese segundo certificado es firmado por Starfield.
-```
 
 Aquí vale un cuidado de lenguaje: no es el certificado el que "genera" el CSR. Es la entidad operadora de la CA, en este caso Amazon, la que crea esa solicitud usando la clave privada asociada a Amazon Root CA 1. El punto conceptual importante es que Starfield nunca recibe la clave privada de Amazon; recibe una solicitud que contiene la clave pública y una prueba de posesión de la clave privada correspondiente.
 
-Así surgen dos certificados diferentes:
-
-```text
-Amazon Root CA 1 self-signed
-Amazon Root CA 1 cross-signed
-```
+Así surgen dos certificados diferentes: la **Amazon Root CA 1 self-signed** y la **Amazon Root CA 1 cross-signed**.
 
 En este caso, representan la misma CA lógica porque tienen el mismo subject, llevan la misma clave pública y ambos son certificados de CA.
 
@@ -605,13 +533,9 @@ Esos clientes antiguos ya confiaban en roots más viejas, como Starfield.
 
 Entonces el cross-signing crea un puente:
 
-```text
-Cliente moderno:
-Leaf -> Amazon RSA 2048 M04 -> Amazon Root CA 1 local
+Cliente moderno: **Leaf → Amazon RSA 2048 M04 → Amazon Root CA 1 local**.
 
-Cliente legado:
-Leaf -> Amazon RSA 2048 M04 -> Amazon Root CA 1 cross-signed -> Starfield Root
-```
+Cliente legado: **Leaf → Amazon RSA 2048 M04 → Amazon Root CA 1 cross-signed → Starfield Root**.
 
 En el cliente moderno, la validación termina antes, porque ya conoce Amazon Root CA 1.
 
@@ -627,11 +551,7 @@ Tanto la versión self-signed como la versión cross-signed llevan la misma clav
 
 Entonces:
 
-```text
-clave pública de Amazon Root CA 1 self-signed
-==
-clave pública de Amazon Root CA 1 cross-signed
-```
+**clave pública de Amazon Root CA 1 self-signed = clave pública de Amazon Root CA 1 cross-signed**
 
 Por eso ambas logran validar la firma de `Amazon RSA 2048 M04`.
 
@@ -641,12 +561,10 @@ El cliente moderno no necesita continuar hasta Starfield porque ya posee localme
 
 El cliente legado, en cambio, usa el certificado cross-signed como un intermediario adicional:
 
-```text
-1. valida el leaf con la clave pública de Amazon RSA 2048 M04;
-2. valida Amazon RSA 2048 M04 con la clave pública de Amazon Root CA 1;
-3. valida la Amazon Root CA 1 cross-signed con la clave pública de Starfield;
-4. cierra la cadena en la Starfield local.
-```
+1. Valida el leaf con la clave pública de Amazon RSA 2048 M04.
+2. Valida Amazon RSA 2048 M04 con la clave pública de Amazon Root CA 1.
+3. Valida la Amazon Root CA 1 cross-signed con la clave pública de Starfield.
+4. Cierra la cadena en la Starfield local.
 
 ## Una última capa: ¿qué más valida el cliente?
 
@@ -663,17 +581,7 @@ openssl x509 -in cert-01.pem -noout -ext basicConstraints
 openssl x509 -in cert-02.pem -noout -ext basicConstraints
 ```
 
-Lo que busco en esa salida es la diferencia entre:
-
-```text
-CA:FALSE
-```
-
-y:
-
-```text
-CA:TRUE
-```
+Lo que busco en esa salida es la diferencia entre `CA:FALSE` y `CA:TRUE`.
 
 Un leaf normalmente aparece con `CA:FALSE`. Esto significa que puede representar a un servidor, pero no puede ser aceptado como una CA capaz de firmar otro certificado por debajo de él en una cadena válida.
 
@@ -704,19 +612,15 @@ Al final de la PoC, logré probar:
 
 Después de recorrer todo el experimento, la forma más útil de pensar en TLS es:
 
-```text
 1. El servidor presenta certificados.
 2. El cliente verifica el hostname en el SAN del leaf.
 3. El cliente valida firma por firma.
 4. El cliente intenta construir un camino hasta una trust anchor local.
 5. La cadena usada por el cliente puede ser diferente de la cadena presentada por el servidor.
-```
 
 Y la idea más importante de todas:
 
-```text
-Un certificado no es lo mismo que una clave pública.
-```
+**Un certificado no es lo mismo que una clave pública.**
 
 Un certificado es un documento firmado.
 
