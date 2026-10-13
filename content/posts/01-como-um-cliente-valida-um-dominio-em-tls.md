@@ -376,9 +376,9 @@ echo "===== root local ====="
 openssl x509 -in roots/root-022.pem -noout -subject -issuer -fingerprint -sha256
 ```
 
-O resultado conceitual foi:
+O resultado conceitual foi, comparando o certificado enviado pelo servidor (`cert-03.pem`) com a root local (`roots/root-022.pem`):
 
-| Campo | `cert-03.pem` | `roots/root-022.pem` |
+| Campo | Enviado | Local |
 |---|---|---|
 | Subject | Amazon Root CA 1 | Amazon Root CA 1 |
 | Issuer | Starfield Services Root Certificate Authority - G2 | Amazon Root CA 1 |

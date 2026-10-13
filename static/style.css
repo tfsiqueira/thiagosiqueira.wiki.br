@@ -135,3 +135,16 @@ li code {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+@media (max-width: 684px) {
+  table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  th,
+  td {
+    padding: 6px 8px;
+    overflow-wrap: break-word;
+  }
+}
