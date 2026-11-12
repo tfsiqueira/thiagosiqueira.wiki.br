@@ -255,7 +255,7 @@ jadx -d /tmp/ssl-pinning-lab/static-analysis/jadx/okhttpPinned \
 Para localizar a referência ao NSC nos manifestos decodificados, uso:
 
 ```bash
-rg -n 'networkSecurityConfig' /tmp/ssl-pinning-lab/static-analysis/apktool/*/AndroidManifest.xml
+grep -n 'networkSecurityConfig' /tmp/ssl-pinning-lab/static-analysis/apktool/*/AndroidManifest.xml
 ```
 
 A busca aponta para o atributo abaixo no `AndroidManifest.xml` das três variantes:
@@ -360,7 +360,7 @@ Nos arquivos exportados pelo JADX, procuro tanto a construção dos pins quanto 
 ao cliente:
 
 ```bash
-rg -n 'CertificatePinner|certificatePinner' /tmp/ssl-pinning-lab/static-analysis/jadx/okhttpPinned/sources
+grep -rnE 'CertificatePinner|certificatePinner' /tmp/ssl-pinning-lab/static-analysis/jadx/okhttpPinned/sources
 ```
 
 A busca aponta para `MainActivity`. Encontrar a classe da biblioteca empacotada no APK não bastaria:

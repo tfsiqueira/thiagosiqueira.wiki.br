@@ -237,7 +237,7 @@ jadx -d /tmp/ssl-pinning-lab/static-analysis/jadx/okhttpPinned \
 Para localizar la referencia al NSC en los manifests decodificados, uso:
 
 ```bash
-rg -n 'networkSecurityConfig' /tmp/ssl-pinning-lab/static-analysis/apktool/*/AndroidManifest.xml
+grep -n 'networkSecurityConfig' /tmp/ssl-pinning-lab/static-analysis/apktool/*/AndroidManifest.xml
 ```
 
 La búsqueda apunta al siguiente atributo en el `AndroidManifest.xml` de las tres variantes:
@@ -340,7 +340,7 @@ Esto me indica que la decisión vive en otro lugar.
 En los archivos exportados por JADX, busco tanto la construcción de los pines como su asociación con el cliente:
 
 ```bash
-rg -n 'CertificatePinner|certificatePinner' /tmp/ssl-pinning-lab/static-analysis/jadx/okhttpPinned/sources
+grep -rnE 'CertificatePinner|certificatePinner' /tmp/ssl-pinning-lab/static-analysis/jadx/okhttpPinned/sources
 ```
 
 La búsqueda apunta a `MainActivity`. Encontrar la clase de la biblioteca empaquetada en el APK no bastaría: necesito seguir su uso en el cliente que ejecuta la solicitud.
