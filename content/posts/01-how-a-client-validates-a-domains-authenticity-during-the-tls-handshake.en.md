@@ -29,6 +29,8 @@ The thread running through all of it will always be the same:
 - *What did the client verify?*
 - *At what point did it decide to trust?*
 
+The focus of this investigation is certificate and hostname validation. That's one part of TLS authentication; the handshake also needs to demonstrate that the server controls the private key matching the certificate. I come back to that distinction after settling the chain.
+
 ## Before starting: what I set out to reproduce
 
 My goal is to capture the chain presented by a real server and understand how OpenSSL manages to validate it locally.
@@ -68,7 +70,7 @@ openssl s_client \
 Each part of the command has a role:
 
 | Snippet | Purpose |
-|---|---|
+| --- | --- |
 | `-connect mercadopago.com.br:443` | Sets the host and port |
 | `-servername mercadopago.com.br` | Sends SNI (Server Name Indication) so the server picks the right certificate |
 | `-showcerts` | Shows the certificates sent by the server |
@@ -76,6 +78,10 @@ Each part of the command has a role:
 | `tee s_client.txt` | Saves the output for later analysis |
 
 The `-servername` parameter deserves attention. SNI (Server Name Indication) is the TLS extension that sends the desired hostname right at the start of the connection. Since multiple domains can share the same IP (Internet Protocol) address, the server uses this information to decide which certificate to present.
+
+Here, `-servername` selects the hostname sent via SNI; by itself, it doesn't trigger comparison of that name against the certificate. What's more, `s_client` is a diagnostic tool that can keep the connection going even after validation errors. So successfully capturing the certificates doesn't prove authentication was accepted. At this stage I'm just collecting material; further on, I use `openssl verify -verify_hostname` to explicitly test the chain and the hostname.
+
+If I want the connection test itself to reject validation errors and check the name, I can use `-verify_return_error -verify_hostname mercadopago.com.br` alongside the connection options. These behaviors are described in the [s_client documentation](https://docs.openssl.org/3.6/man1/openssl-s_client/).
 
 The `s_client.txt` file contains the certificates in PEM (Privacy-Enhanced Mail) format, a textual representation of the certificate's binary data. To split each certificate into its own file, I use:
 
@@ -120,7 +126,7 @@ The observed output was:
 From this I can already put together a first reading:
 
 | File | Likely role | Why |
-|---|---|---|
+| --- | --- | --- |
 | `cert-01.pem` | Leaf | The `subject` is the end domain |
 | `cert-02.pem` | Intermediate | The `subject` is the CA that signed the leaf |
 | `cert-03.pem` | Amazon Root CA 1 certificate | The `subject` is `Amazon Root CA 1` |
@@ -250,13 +256,16 @@ And ask OpenSSL to validate the leaf:
 
 ```bash
 openssl verify \
+  -purpose sslserver \
   -show_chain \
   -verify_hostname mercadopago.com.br \
   -untrusted intermediates.pem \
   cert-01.pem
 ```
 
-Output: `cert-01.pem: OK`. The chain shown was:
+`-purpose sslserver` requests verification for use as a TLS server, including compatibility of the certificate's usage extensions, such as Extended Key Usage (EKU), when present. Without that option, `openssl verify` doesn't automatically apply that same purpose. The hostname is checked separately via `-verify_hostname`.
+
+The relevant output is `cert-01.pem: OK`. The chain (`Chain`) shown is:
 
 - `depth=0: CN=www.mercadopago.com.br (untrusted)`
 - `depth=1: C=US, O=Amazon, CN=Amazon RSA 2048 M04 (untrusted)`
@@ -299,6 +308,7 @@ openssl verify \
   -no-CApath \
   -no-CAstore \
   -CAfile /opt/homebrew/etc/openssl@3/cert.pem \
+  -purpose sslserver \
   -show_chain \
   -verify_hostname mercadopago.com.br \
   -untrusted intermediates.pem \
@@ -312,7 +322,7 @@ This point matters because there's no such thing as a universal trust store.
 It's worth separating the two terms. A trust store is the local set of trusted CAs available to the client. A trust anchor is the specific certificate or key, within that set, that closes a particular validation.
 
 | Environment | Primary trust store |
-|---|---|
+| --- | --- |
 | Native macOS | Keychain |
 | Homebrew OpenSSL | Its own bundle in `cert.pem` |
 | Android | System store, user store, and application-embedded anchors |
@@ -353,7 +363,19 @@ done
 
 I find `roots/root-022.pem`, with `subject=C=US, O=Amazon, CN=Amazon Root CA 1` and `issuer=C=US, O=Amazon, CN=Amazon Root CA 1`.
 
-That was the local self-signed version of `Amazon Root CA 1`.
+The matching `subject` and `issuer` indicate a *self-issued* certificate, issued in the name of the entity itself. To conclude it's *self-signed*, I also need to check its signature using its own public key. I make that check explicit:
+
+```bash
+openssl verify \
+  -no-CApath -no-CAstore \
+  -CAfile roots/root-022.pem \
+  -check_ss_sig \
+  roots/root-022.pem
+```
+
+The output is `roots/root-022.pem: OK`. The `-check_ss_sig` flag requests verification of the root's own signature, which normally isn't necessary to decide whether to trust an anchor that's already configured. In this test, I'm choosing the certificate as the anchor in order to check its signature; that alone doesn't justify trusting it. The trust decision remains external to self-signing.
+
+That confirms the local self-signed version of `Amazon Root CA 1`.
 
 An important distinction shows up here:
 
@@ -379,10 +401,10 @@ openssl x509 -in roots/root-022.pem -noout -subject -issuer -fingerprint -sha256
 The conceptual result was, comparing the certificate sent by the server (`cert-03.pem`) with the local root (`roots/root-022.pem`):
 
 | Field | Sent | Local |
-|---|---|---|
+| --- | --- | --- |
 | Subject | Amazon Root CA 1 | Amazon Root CA 1 |
 | Issuer | Starfield Services Root Certificate Authority - G2 | Amazon Root CA 1 |
-| Fingerprint | Different | Different |
+| Fingerprint SHA-256 | `87:DC:D4:DC:74:64:0A:32:2C:D2:05:55:25:06:D1:BE:64:F1:25:96:25:80:96:54:49:86:B4:85:0B:C7:27:06` | `8E:CD:E6:88:4F:3D:87:B1:12:5B:A3:1A:C3:FC:B1:3D:70:16:DE:7F:57:CC:90:4F:E1:CB:97:C6:AE:98:19:6E` |
 
 This proves they are different certificates.
 
@@ -478,9 +500,9 @@ Modern client: **Leaf → Amazon RSA 2048 M04 → local Amazon Root CA 1**.
 
 Legacy client: **Leaf → Amazon RSA 2048 M04 → cross-signed Amazon Root CA 1 → Starfield Root**.
 
-On the modern client, validation ends early, because it already knows Amazon Root CA 1.
+On the path I observed, OpenSSL ends at the local Amazon Root CA 1. The path up to Starfield shows the alternative that cross-signing makes possible on a compatible client that trusts that other anchor; it's not a second run demonstrated in this PoC.
 
-On the legacy client, validation continues up to Starfield, because that's what it trusts locally.
+"Modern" and "legacy" are shorthand here for two trust scenarios. The choice doesn't depend only on the client's age: it also depends on the anchors available, the policies in place, and the path-building rules. The presence of the cross-signed certificate doesn't guarantee acceptance by just any old client.
 
 ## Question 13: why can the modern client stop at the local root instead of continuing through the cross-signed version?
 
@@ -536,28 +558,55 @@ Another related extension is `keyUsage`. Even if a certificate has `CA:TRUE`, it
 
 Finally, this article doesn't cover revocation mechanisms such as CRL (Certificate Revocation List) and OCSP (Online Certificate Status Protocol). They're another important part of validation in some clients, but weren't necessary to answer this PoC's central question.
 
+## The certificate is public; how does the server prove it controls the key?
+
+Up to this point, I'm checking whether a certificate ties a public key to the expected domain via an accepted trust path. But anyone can copy those public certificates. Presenting them, by itself, doesn't demonstrate control of the server's private key.
+
+In TLS 1.3 certificate-based authentication, the server sends a `CertificateVerify` message with a signature tied to the content of the negotiation. The client uses the leaf's public key to verify it. That demonstrates possession of the matching private key and binds that proof to the handshake in progress. The `Finished` message also plays a role in protecting the integrity of the negotiation. This mechanism is described in [RFC 8446, section 4.4](https://www.rfc-editor.org/rfc/rfc8446.html#section-4.4).
+
+So there are two distinct checks: trusting the association between domain and public key, and confirming that the party on the connection controls the matching private key. Validating the PEMs with `openssl verify` tests the first part; it doesn't reproduce a proof of possession on a live connection.
+
+## Materials and references to reproduce this
+
+I preserved the public certificates and the original output in the [observed chain package](#TODO-link-github-tls-chain-snapshot-zip). A fresh capture of the domain may show different certificates. To study these exact files, I extract the package and use the preserved PEMs; the name `root-022.pem` was only its position in the original bundle, not a stable identifier for the CA.
+
+In the package, the local root is named `amazon-root-ca-1-local.pem`. From the extracted folder, I reproduce the validation with:
+
+```bash
+openssl verify \
+  -no-CApath -no-CAstore \
+  -CAfile amazon-root-ca-1-local.pem \
+  -purpose sslserver \
+  -verify_hostname mercadopago.com.br \
+  -untrusted intermediates.pem \
+  -show_chain cert-01.pem
+```
+
+For this revision, I repeated the validation of the preserved files with OpenSSL 4.1.0 and got `OK`. The [validation log](#TODO-link-github-validation-txt) includes that run, the fingerprints, and the check of the root's signature. Certificates have a validity period; `OK` describes the run on record, not a promise about future validity.
+
+To check the rules used:
+
+- [OpenSSL — verification options](https://docs.openssl.org/3.6/man1/openssl-verification-options/): path building, purpose, and trust anchors.
+- [OpenSSL — s_client](https://docs.openssl.org/3.6/man1/openssl-s_client/): capture and behavior in the face of errors.
+- [RFC 5280](https://www.rfc-editor.org/rfc/rfc5280.html): X.509 certificate profile and validation.
+- [RFC 8446](https://www.rfc-editor.org/rfc/rfc8446.html): TLS 1.3 authentication and handshake.
+
 ## What the experiment actually taught me
 
-By the end of the PoC, I was able to prove:
+The investigation shows a concrete difference between the chain presented and the chain validated: the server offers the cross-signed Amazon Root CA 1, but OpenSSL closes the path at the self-signed version available locally. The hostname matches the SAN, and explicit validation confirms the path for use as a TLS server.
 
-1. the server sent a leaf, an intermediate, and an auxiliary certificate;
-2. the leaf was valid for `mercadopago.com.br` because the SAN contained that hostname;
-3. the auxiliary certificate sent by the server was a cross-signed version of Amazon Root CA 1;
-4. OpenSSL didn't close the validation at that server-sent certificate;
-5. OpenSSL found a self-signed Amazon Root CA 1 locally;
-6. the local version and the cross-signed version had different fingerprints;
-7. both had the same SPKI hash;
-8. so they were different certificates representing the same logical CA.
+The different fingerprints identify different documents; the matching SPKI hash reveals the same public key. That combination explains why distinct certificates can take part in alternate paths to the same logical CA.
 
 ## Final mental model
 
-After walking through the whole experiment, the most useful way to think about TLS is:
+After walking through the experiment, I break the responsibilities down below. This list is a conceptual model, not the mandatory order of execution for every TLS client's checks:
 
 1. The server presents certificates.
 2. The client checks the hostname against the leaf's SAN.
 3. The client validates signature by signature.
 4. The client tries to build a path to a local trust anchor.
 5. The chain used by the client can differ from the chain presented by the server.
+6. On a certificate-authenticated connection, the server also demonstrates possession of the matching private key; the public certificates, on their own, aren't enough.
 
 And the most important idea of all:
 
@@ -579,7 +628,7 @@ In TLS, trusting a domain doesn't mean trusting a single isolated file. It means
 ## Quick reference for the terms used
 
 | Term | Meaning |
-|---|---|
+| --- | --- |
 | HTTPS (Hypertext Transfer Protocol Secure) | HTTP carried over a TLS connection |
 | Handshake | The initial negotiation where client and server agree on parameters and validate identity |
 | TLS (Transport Layer Security) | Protocol that protects the connection's confidentiality, integrity, and authenticity |

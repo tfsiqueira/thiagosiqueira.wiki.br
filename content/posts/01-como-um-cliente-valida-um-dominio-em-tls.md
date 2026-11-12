@@ -23,6 +23,10 @@ Esse mecanismo depende de uma infraestrutura de chaves públicas, ou PKI (Public
 
 Este artigo parte de uma PoC (Proof of Concept) real que eu realizei com `mercadopago.com.br`. A ideia não é decorar a cadeia específica observada, porque certificados públicos mudam com o tempo. A ideia é acompanhar a investigação passo a passo e responder, em cada etapa, o que o cliente está realmente verificando.
 
+O foco desta investigação é a validação dos certificados e do hostname. Essa é uma parte da
+autenticação TLS; o handshake também precisa demonstrar que o servidor controla a chave privada
+correspondente ao certificado. Eu volto a essa distinção depois de resolver a cadeia.
+
 O fio condutor será sempre o mesmo:
 
 - *O que o servidor enviou?*
@@ -68,7 +72,7 @@ openssl s_client \
 Cada parte do comando tem um papel:
 
 | Trecho | Função |
-|---|---|
+| --- | --- |
 | `-connect mercadopago.com.br:443` | Define host e porta |
 | `-servername mercadopago.com.br` | Envia SNI (Server Name Indication) para o servidor escolher o certificado correto |
 | `-showcerts` | Mostra os certificados enviados pelo servidor |
@@ -76,6 +80,16 @@ Cada parte do comando tem um papel:
 | `tee s_client.txt` | Salva a saída para análise posterior |
 
 O parâmetro `-servername` merece atenção. SNI (Server Name Indication) é a extensão do TLS que envia o hostname desejado logo no início da conexão. Como vários domínios podem compartilhar o mesmo endereço IP (Internet Protocol), o servidor usa essa informação para decidir qual certificado deve apresentar.
+
+Aqui, `-servername` seleciona o hostname enviado por SNI; ele não ativa, por si só, a comparação
+desse nome com o certificado. Além disso, `s_client` é uma ferramenta de diagnóstico que pode
+continuar a conexão após erros de validação. Portanto, conseguir capturar os certificados não
+prova que a autenticação foi aceita. Nesta etapa eu coleto material; mais adiante, uso
+`openssl verify -verify_hostname` para testar explicitamente a cadeia e o hostname.
+
+Se eu quiser que o próprio teste de conexão rejeite erros de validação e confira o nome, posso
+usar `-verify_return_error -verify_hostname mercadopago.com.br` junto das opções de conexão.
+Esses comportamentos estão descritos na [documentação do s_client](https://docs.openssl.org/3.6/man1/openssl-s_client/).
 
 O arquivo `s_client.txt` contém os certificados em formato PEM (Privacy-Enhanced Mail), uma representação textual dos dados binários do certificado. Para separar cada certificado em um arquivo próprio, eu uso:
 
@@ -120,7 +134,7 @@ A saída observada foi:
 Daqui eu já consigo montar uma primeira leitura:
 
 | Arquivo | Papel provável | Por quê |
-|---|---|---|
+| --- | --- | --- |
 | `cert-01.pem` | Leaf | O `subject` é o domínio final |
 | `cert-02.pem` | Intermediate | O `subject` é a CA que assinou o leaf |
 | `cert-03.pem` | Certificado da Amazon Root CA 1 | O `subject` é `Amazon Root CA 1` |
@@ -250,13 +264,19 @@ E peço ao OpenSSL para validar o leaf:
 
 ```bash
 openssl verify \
+  -purpose sslserver \
   -show_chain \
   -verify_hostname mercadopago.com.br \
   -untrusted intermediates.pem \
   cert-01.pem
 ```
 
-Saída: `cert-01.pem: OK`. A cadeia (`Chain`) mostrada foi:
+`-purpose sslserver` pede a verificação para o uso como servidor TLS, incluindo a compatibilidade
+das extensões de uso do certificado, como Extended Key Usage (EKU), quando presentes. Sem essa
+opção, `openssl verify` não aplica automaticamente essa mesma finalidade. O hostname é verificado
+separadamente por `-verify_hostname`.
+
+A saída relevante é `cert-01.pem: OK`. A cadeia (`Chain`) mostrada é:
 
 - `depth=0: CN=www.mercadopago.com.br (untrusted)`
 - `depth=1: C=US, O=Amazon, CN=Amazon RSA 2048 M04 (untrusted)`
@@ -299,6 +319,7 @@ openssl verify \
   -no-CApath \
   -no-CAstore \
   -CAfile /opt/homebrew/etc/openssl@3/cert.pem \
+  -purpose sslserver \
   -show_chain \
   -verify_hostname mercadopago.com.br \
   -untrusted intermediates.pem \
@@ -312,7 +333,7 @@ Esse ponto é importante porque não existe um trust store universal.
 Vale separar os dois termos. Trust store é o conjunto local de CAs confiáveis disponíveis para o cliente. Trust anchor é o certificado ou a chave específica desse conjunto que encerra uma validação concreta.
 
 | Ambiente | Trust store principal |
-|---|---|
+| --- | --- |
 | macOS nativo | Keychain |
 | OpenSSL Homebrew | Bundle próprio em `cert.pem` |
 | Android | System store, user store e anchors da aplicação |
@@ -353,7 +374,24 @@ done
 
 Eu encontro `roots/root-022.pem`, com `subject=C=US, O=Amazon, CN=Amazon Root CA 1` e `issuer=C=US, O=Amazon, CN=Amazon Root CA 1`.
 
-Essa era a versão self-signed local da `Amazon Root CA 1`.
+A igualdade de `subject` e `issuer` indica um certificado *self-issued*, emitido em nome da própria
+entidade. Para concluir que ele é *self-signed*, preciso também conferir sua assinatura usando
+a própria chave pública. Faço essa verificação explicitamente:
+
+```bash
+openssl verify \
+  -no-CApath -no-CAstore \
+  -CAfile roots/root-022.pem \
+  -check_ss_sig \
+  roots/root-022.pem
+```
+
+A saída é `roots/root-022.pem: OK`. O parâmetro `-check_ss_sig` solicita a verificação da assinatura
+da root, que normalmente não é necessária para decidir confiar numa trust anchor já configurada.
+Nesse teste, escolho o certificado como anchor para conferir a assinatura; isso não justifica,
+por si só, confiar nele. A decisão de confiança continua sendo externa à autoassinatura.
+
+Assim confirmo a versão self-signed local da `Amazon Root CA 1`.
 
 Aqui aparece uma distinção importante:
 
@@ -379,10 +417,10 @@ openssl x509 -in roots/root-022.pem -noout -subject -issuer -fingerprint -sha256
 O resultado conceitual foi, comparando o certificado enviado pelo servidor (`cert-03.pem`) com a root local (`roots/root-022.pem`):
 
 | Campo | Enviado | Local |
-|---|---|---|
+| --- | --- | --- |
 | Subject | Amazon Root CA 1 | Amazon Root CA 1 |
 | Issuer | Starfield Services Root Certificate Authority - G2 | Amazon Root CA 1 |
-| Fingerprint | Diferente | Diferente |
+| Fingerprint SHA-256 | `87:DC:D4:DC:74:64:0A:32:2C:D2:05:55:25:06:D1:BE:64:F1:25:96:25:80:96:54:49:86:B4:85:0B:C7:27:06` | `8E:CD:E6:88:4F:3D:87:B1:12:5B:A3:1A:C3:FC:B1:3D:70:16:DE:7F:57:CC:90:4F:E1:CB:97:C6:AE:98:19:6E` |
 
 Isso prova que são certificados diferentes.
 
@@ -454,7 +492,7 @@ O processo conceitual é:
 5. A Starfield usa essa solicitação para emitir outro certificado para a mesma chave pública da Amazon Root CA 1.
 6. Esse segundo certificado é assinado pela Starfield.
 
-Aqui vale um cuidado de linguagem: não é o certificado que "gera" o CSR. É a entidade operadora da CA, neste caso a Amazon, que cria essa solicitação usando a chave privada associada à Amazon Root CA 1. O ponto conceitual importante é que a Starfield não recebe a chave privada da Amazon; ela recebe uma solicitação que contém a chave pública e uma prova de posse da chave privada correspondente.
+Aqui vale um cuidado de linguagem: não é o certificado que “gera” o CSR. É a entidade operadora da CA, neste caso a Amazon, que cria essa solicitação usando a chave privada associada à Amazon Root CA 1. O ponto conceitual importante é que a Starfield não recebe a chave privada da Amazon; ela recebe uma solicitação que contém a chave pública e uma prova de posse da chave privada correspondente.
 
 Assim surgem dois certificados diferentes: a **Amazon Root CA 1 self-signed** e a **Amazon Root CA 1 cross-signed**.
 
@@ -478,9 +516,13 @@ No cliente moderno: **Leaf → Amazon RSA 2048 M04 → Amazon Root CA 1 local**.
 
 No cliente legado: **Leaf → Amazon RSA 2048 M04 → Amazon Root CA 1 cross-signed → Starfield Root**.
 
-No cliente moderno, a validação termina cedo, porque ele já conhece a Amazon Root CA 1.
+No caminho que observei, o OpenSSL termina na Amazon Root CA 1 local. O caminho até a Starfield
+mostra a alternativa que o cross-signing permite construir num cliente compatível que confie
+nessa outra anchor; não é uma segunda execução demonstrada nesta PoC.
 
-No cliente legado, a validação continua até a Starfield, porque é nela que ele confia localmente.
+“Moderno” e “legado” resumem aqui dois cenários de confiança. A escolha não depende apenas da idade
+do cliente: também depende das anchors disponíveis, das políticas e das regras de construção do
+caminho. A presença do certificado cross-signed não garante aceitação por qualquer cliente antigo.
 
 ## Pergunta 13: por que o cliente moderno consegue encerrar na root local em vez de continuar pela versão cross-signed?
 
@@ -536,28 +578,76 @@ Outra extensão relacionada é `keyUsage`. Mesmo que um certificado tenha `CA:TR
 
 Por fim, este artigo não cobre mecanismos de revogação, como CRL (Certificate Revocation List) e OCSP (Online Certificate Status Protocol). Eles formam outra parte importante da validação em alguns clientes, mas não eram necessários para responder a pergunta central desta PoC.
 
+## O certificado é público; como o servidor prova que controla a chave?
+
+Até aqui, eu verifico se um certificado associa uma chave pública ao domínio esperado por um
+caminho de confiança aceito. Mas qualquer pessoa pode copiar esses certificados públicos.
+Apresentá-los não demonstra, por si só, controle da chave privada do servidor.
+
+Na autenticação por certificado do TLS 1.3, o servidor envia uma mensagem `CertificateVerify`
+com uma assinatura ligada ao conteúdo da negociação. O cliente usa a chave pública do leaf para
+verificá-la. Isso demonstra a posse da chave privada correspondente e vincula essa prova ao
+handshake em andamento. A mensagem `Finished` também participa da proteção da integridade da
+negociação. Esse mecanismo é descrito na [RFC 8446, seção 4.4](https://www.rfc-editor.org/rfc/rfc8446.html#section-4.4).
+
+Assim, há duas verificações distintas: confiar na associação entre domínio e chave pública e
+confirmar que o participante da conexão controla a chave privada correspondente. Validar os PEMs
+com `openssl verify` testa a primeira parte; não reproduz uma prova de posse numa conexão ativa.
+
+## Materiais e referências para reproduzir
+
+Preservei os certificados públicos e a saída original no
+[pacote da cadeia observada](#TODO-link-github-tls-chain-snapshot-zip). Uma nova captura
+do domínio pode apresentar certificados diferentes. Para estudar exatamente estes arquivos,
+extraio o pacote e uso os PEMs preservados; o nome `root-022.pem` era apenas a posição no bundle
+original, não um identificador estável da CA.
+
+No pacote, a root local está nomeada `amazon-root-ca-1-local.pem`. A partir da pasta extraída,
+eu reproduzo a validação com:
+
+```bash
+openssl verify \
+  -no-CApath -no-CAstore \
+  -CAfile amazon-root-ca-1-local.pem \
+  -purpose sslserver \
+  -verify_hostname mercadopago.com.br \
+  -untrusted intermediates.pem \
+  -show_chain cert-01.pem
+```
+
+Na revisão, repeti a validação dos arquivos preservados com OpenSSL 4.1.0 e obtive `OK`.
+O [registro de validação](#TODO-link-github-validation-txt) inclui essa execução,
+os fingerprints e a conferência da assinatura da root. Certificados têm validade temporal;
+`OK` descreve a execução registrada, não uma promessa de validade futura.
+
+Para conferir as regras usadas:
+
+- [OpenSSL — opções de verificação](https://docs.openssl.org/3.6/man1/openssl-verification-options/): construção do caminho, finalidade e trust anchors.
+- [OpenSSL — s_client](https://docs.openssl.org/3.6/man1/openssl-s_client/): captura e comportamento diante de erros.
+- [RFC 5280](https://www.rfc-editor.org/rfc/rfc5280.html): perfil e validação de certificados X.509.
+- [RFC 8446](https://www.rfc-editor.org/rfc/rfc8446.html): autenticação e handshake TLS 1.3.
+
 ## O que o experimento realmente me ensinou
 
-Ao final da PoC, eu consegui provar:
+A investigação mostra uma diferença concreta entre a cadeia apresentada e a cadeia validada:
+o servidor oferece a Amazon Root CA 1 cross-signed, mas o OpenSSL encerra o caminho na versão
+self-signed disponível localmente. O hostname é compatível com o SAN, e a validação explícita
+confirma o caminho para uso como servidor TLS.
 
-1. o servidor enviou um leaf, um intermediate e um certificado auxiliar;
-2. o leaf era válido para `mercadopago.com.br` porque o SAN continha esse hostname;
-3. o certificado auxiliar enviado pelo servidor era uma versão cross-signed da Amazon Root CA 1;
-4. o OpenSSL não encerrou a validação nesse certificado enviado pelo servidor;
-5. o OpenSSL encontrou localmente uma Amazon Root CA 1 self-signed;
-6. a versão local e a versão cross-signed tinham fingerprints diferentes;
-7. ambas tinham o mesmo hash de SPKI;
-8. portanto, eram certificados diferentes representando a mesma CA lógica.
+Os fingerprints diferentes identificam documentos diferentes; o hash de SPKI igual revela a
+mesma chave pública. Essa combinação explica por que certificados distintos podem participar
+de caminhos alternativos para a mesma CA lógica.
 
 ## Modelo mental final
 
-Depois de percorrer o experimento inteiro, a forma mais útil de pensar em TLS é:
+Depois de percorrer o experimento, eu separo as responsabilidades abaixo. Esta lista é um modelo conceitual, não a ordem obrigatória de execução das verificações em todo cliente TLS:
 
 1. O servidor apresenta certificados.
 2. O cliente verifica o hostname no SAN do leaf.
 3. O cliente valida assinatura por assinatura.
 4. O cliente tenta construir um caminho até uma trust anchor local.
 5. A cadeia usada pelo cliente pode ser diferente da cadeia apresentada pelo servidor.
+6. Na conexão autenticada por certificado, o servidor também demonstra posse da chave privada correspondente; os certificados públicos, sozinhos, não bastam.
 
 E a ideia mais importante de todas:
 
@@ -579,7 +669,7 @@ Em TLS, confiar em um domínio não significa confiar em um arquivo isolado. Sig
 ## Referência rápida dos termos usados
 
 | Termo | Significado |
-|---|---|
+| --- | --- |
 | HTTPS (Hypertext Transfer Protocol Secure) | HTTP transportado sobre uma conexão TLS |
 | Handshake | Negociação inicial em que cliente e servidor combinam parâmetros e validam identidade |
 | TLS (Transport Layer Security) | Protocolo que protege confidencialidade, integridade e autenticidade da conexão |
