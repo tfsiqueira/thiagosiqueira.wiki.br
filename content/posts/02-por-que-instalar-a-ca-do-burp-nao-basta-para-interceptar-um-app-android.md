@@ -94,7 +94,7 @@ adb shell am start -a android.intent.action.VIEW \
 Os comandos acima fazem duas coisas diferentes:
 
 | Trecho | Função |
-|---|---|
+| --- | --- |
 | `settings put global http_proxy :0` | Remove o proxy global do Android |
 | `settings put global http_proxy 10.0.2.2:8080` | Faz o emulador enviar tráfego para o Burp no host |
 | `10.0.2.2` | Alias especial que, dentro do emulador, aponta para o macOS host |
@@ -197,7 +197,7 @@ adb shell am start \
 Esse padrão de comando se repete nas próximas flavors:
 
 | Trecho | Função |
-|---|---|
+| --- | --- |
 | `am force-stop <package>` | Encerra a instância anterior para o teste começar limpo |
 | `am start -n <package>/<activity>` | Abre exatamente a flavor desejada |
 | `--ez auto_request true` | Envia um boolean extra para a app disparar a requisição ao abrir |
@@ -231,7 +231,7 @@ No laboratório, `systemOnly` torna essa decisão explícita com `src="system"`.
 Isso explica o aparente paradoxo:
 
 | Cliente | O que ele aceita | Resultado |
-|---|---|---|
+| --- | --- | --- |
 | Chrome Android | CA instalada pelo usuário | Passa |
 | `systemOnly` | Apenas CAs do sistema | Falha |
 
@@ -265,7 +265,7 @@ Agora a app aceita:
 - CAs do sistema;
 - CAs adicionadas pelo usuário.
 
-O atributo `overridePins="false"` também importa. Ele diz que uma CA vinda do user store pode participar da validação normal da cadeia, mas não ganha permissão para ignorar pins caso eles existam. Em `proxyTrusted`, ainda não há `<pin-set>`, então esse detalhe não muda o resultado. Mas ele prepara exatamente a comparação com `nscPinned`.
+O atributo `overridePins="false"` torna explícita uma decisão que já seria o padrão fora de `debug-overrides`. Ele diz que uma CA vinda do user store pode participar da validação normal da cadeia, mas não ganha permissão para ignorar pins caso eles existam. Em `proxyTrusted`, ainda não há `<pin-set>`, então esse detalhe não muda o resultado. Ele documenta a intenção que vou manter na comparação com `nscPinned`; omitir o atributo aqui não mudaria seu valor padrão.
 
 Eu executo:
 
@@ -308,7 +308,7 @@ Ela também passa no caminho direto, porque `src="user"` aceita a Root CA local 
 
 Esse é o papel mais importante de `proxyTrusted` no laboratório.
 
-Ela não existe para mostrar uma app "vulnerável".
+Ela não existe para mostrar uma app “vulnerável”.
 
 Ela existe para provar que a infraestrutura de interceptação está correta antes de falar em pinning.
 
@@ -404,7 +404,7 @@ Com pinning, a pergunta passa a ser: *essa cadeia termina em uma CA que eu confi
 A comparação central do laboratório fica:
 
 | Variante | User CA aceita? | Pinning? | Direto | Via Burp | Causa da falha via Burp |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | `systemOnly` | Não | Não | Falha | Falha | Trust anchor não aceita |
 | `proxyTrusted` | Sim | Não | Passa | Passa | Não há falha |
 | `nscPinned` | Sim | Sim | Passa | Falha | SPKI não bate |
@@ -419,17 +419,23 @@ Essa tabela resume a distinção que eu quero provar.
 
 As duas falhas aparecem como problemas de TLS para a app, mas elas não significam a mesma coisa.
 
-O fluxo simplificado, olhando para TCP (Transmission Control Protocol), TLS e HTTP (Hypertext Transfer Protocol), fica: **TCP conecta → TLS handshake começa → cadeia de certificados é validada → pinning é aplicado, se existir → HTTP só acontece depois.**
+No cenário com proxy explícito, a app primeiro estabelece a conexão TCP (Transmission Control
+Protocol) com o Burp e solicita um túnel com o método HTTP (Hypertext Transfer Protocol) `CONNECT`.
+Depois, negocia TLS por esse túnel. Portanto, já existe HTTP de controle do proxy antes do TLS;
+o que ainda não foi enviado é a requisição da aplicação, como `GET /profile`.
 
-Essa ordem importa porque, no modelo OSI (Open Systems Interconnection), o handshake TLS fica numa posição intermediária, entre o transporte e a aplicação, e não se encaixa perfeitamente em nenhuma camada única. Mas, para raciocinar sobre o experimento, o que importa é que **TCP já está funcionando enquanto TLS ainda está decidindo se aceita a conexão, e HTTP ainda nem começou**.
+Para as flavors que usam `HttpsURLConnection` e os pins do NSC neste experimento, o fluxo é:
+**TCP com o proxy → CONNECT → handshake TLS → validação da cadeia e dos pins do NSC → requisição HTTP da aplicação no túnel TLS.**
 
-Em `systemOnly`, a falha acontece quando o Android tenta encontrar uma trust anchor: **TCP OK → TLS handshake começa → cadeia do Burp não chega a uma CA aceita → handshake aborta → HTTP nunca começa.**
+O ponto relevante para o diagnóstico é que a comunicação TCP com o proxy e o túnel podem funcionar enquanto a validação TLS rejeita a conexão. Isso impede o envio do `GET /profile`, sem significar que toda comunicação anterior falhou.
 
-Em `nscPinned`, a cadeia já é confiável, mas o Android aplica a verificação extra de pins: **TCP OK → TLS handshake começa → cadeia do Burp chega a uma CA aceita → `NetworkSecurityTrustManager.checkPins` rejeita o SPKI → handshake aborta → HTTP nunca começa.**
+Em `systemOnly`, a falha acontece quando o Android tenta encontrar uma trust anchor: **TCP OK → TLS handshake começa → cadeia do Burp não chega a uma CA aceita → handshake aborta → GET /profile não é enviado pelo túnel TLS.**
+
+Em `nscPinned`, a cadeia já é confiável, mas o Android aplica a verificação extra de pins: **TCP OK → TLS handshake começa → cadeia do Burp chega a uma CA aceita → `NetworkSecurityTrustManager.checkPins` rejeita o SPKI → handshake aborta → GET /profile não é enviado pelo túnel TLS.**
 
 Essa diferença importa porque os sintomas visuais podem parecer parecidos: as duas aparecem como `FAILURE` com `SSLHandshakeException`. Mas o diagnóstico correto depende da causa raiz:
 
-- `CertPathValidatorException` → falha de trust store;
+- neste caso, `CertPathValidatorException` com a mensagem `Trust anchor for certification path not found` → ausência de uma trust anchor aceita;
 - `Pin verification failed` → falha real de pinning.
 
 ## Pergunta 6: uma build debug com `<pin-set>` também rejeita o Burp?
@@ -472,7 +478,7 @@ O resultado é `SUCCESS`, com `HTTP 200`.
 
 O logcat confirma: `debug-overrides request succeeded`.
 
-Isso não significa que o pinning "aceita" o certificado do Burp.
+Isso não significa que o pinning “aceita” o certificado do Burp.
 
 O que acontece é:
 
@@ -481,38 +487,58 @@ O que acontece é:
 3. a conexão usa essa CA de debug;
 4. `overridePins="true"` instrui o Android a ignorar pins para essa anchor.
 
+Essa dispensa de pins é a do NSC. Ela não garante que uma checagem adicional implementada em uma biblioteca ou em código próprio também será ignorada.
+
 Vale uma ressalva: esse comportamento depende do atributo `android:debuggable` do build, não do nome da flavor em si. Qualquer variante buildada como debuggable que declare `debug-overrides` se comportaria da mesma forma, independentemente de qual flavor ela representa. No laboratório, `debugOverrides` só isola essa configuração para deixá-la fácil de observar.
 
 Em outras palavras: *o pinning não vence; ele é deliberadamente pulado na configuração de debug.*
 
-Esse detalhe é importante porque uma análise feita apenas em build debug pode levar a uma conclusão errada: *"a app aceita Burp, então ela não tem pinning"*.
+Esse detalhe é importante porque uma análise feita apenas em build debug pode levar a uma conclusão errada: *“a app aceita Burp, então ela não tem pinning”*.
 
 Na verdade, a release pode continuar protegida, porque `debug-overrides` só participa da política quando a aplicação é debuggable.
 
 ## O que o experimento realmente me ensinou
 
-Ao final dessa etapa do laboratório, eu consigo provar:
+A diferença entre as flavors deixa o diagnóstico observável: `systemOnly` rejeita a cadeia,
+`proxyTrusted` a aceita, e `nscPinned` acrescenta uma restrição que rejeita os pins do proxy.
+`debugOverrides` mostra uma exceção deliberada à aplicação dos pins do NSC numa build de debug.
 
-1. instalar a CA do Burp no Android não garante que toda app confie nela;
-2. `systemOnly` falha porque aceita apenas CAs do sistema;
-3. `proxyTrusted` passa porque inclui `src="user"`;
-4. `nscPinned` falha mesmo aceitando a CA do Burp, porque o SPKI não bate;
-5. `debugOverrides` passa porque a configuração de debug ignora pins para a CA declarada;
-6. falha de trust store e falha de pinning podem parecer iguais na superfície, mas são problemas diferentes.
+Portanto, o mesmo resultado visual, `FAILURE`, pode esconder decisões diferentes. A causa raiz,
+a configuração e a comparação com a baseline são o que me permitem distinguir essas decisões.
 
 ## Nota para quem for implementar pinning
 
 O laboratório até aqui olha pela lente de quem analisa a app. Mas quem for configurar pinning em uma app real vai tomar algumas dessas mesmas decisões do outro lado:
 
 - `debug-overrides` com `overridePins="true"` é útil para desenvolvimento, mas só é seguro se a flag `android:debuggable` realmente não vazar para o build de release;
-- `overridePins="false"` em `src="user"` é o que impede uma CA instalada manualmente de contornar o pinning; sem esse atributo, qualquer CA confiável bypassa o pin-set;
+- em `src="user"`, explicitar `overridePins="false"` documenta a intenção, mas esse já é o padrão fora de `debug-overrides`. Dentro de `debug-overrides`, o padrão é `true`. O bypass dos pins do NSC ocorre quando a cadeia usa uma fonte configurada com `overridePins="true"`;
 - um `<pin-set>` com um único pin é um risco operacional: se a chave privada do servidor precisar rotacionar sem aviso, a app para de funcionar. O backup pin existe para cobrir exatamente esse cenário.
 
 Esses pontos vão ganhar mais peso prático quando a série chegar a instrumentação e bypass de pinning, mas já valem como checklist para quem for revisar a configuração de uma app antes disso.
 
+## Materiais e referências para reproduzir
+
+Os experimentos dependem da API e das flavors deste laboratório. Os arquivos de apoio incluem
+a [API HTTPS](#TODO-link-github-lab-api-readme), o [app Android](#TODO-link-github-lab-android-app-readme), a
+[preparação do ambiente](#TODO-link-github-docs-00-environment) e o
+[roteiro completo de reprodução](#TODO-link-github-docs-12-complete-lab-story).
+
+Para montar uma cópia própria, gerar novas chaves não basta: os pins dos XMLs precisam acompanhar
+o SPKI das suas chaves, e a CA do Burp declarada em `debugOverrides` precisa ser a do seu proxy.
+Os hashes e as capturas deste texto pertencem à execução documentada; não são valores que qualquer
+instalação nova deva copiar sem conferir. Nas flavors deste artigo, eu altero os pins declarados
+em `<pin-set>` conforme as chaves geradas e reconstruo os APKs antes de comparar os resultados.
+
+Para conferir o comportamento da plataforma:
+
+- [Android — Network Security Configuration](https://developer.android.com/privacy-and-security/security-config): anchors, pins e configurações de debug.
+- [Android — atributo overridePins](https://developer.android.com/privacy-and-security/security-config#certificates): valores padrão e dispensa de pins por fonte de CAs.
+- [Android — mudanças no Android 7.0](https://developer.android.com/about/versions/nougat/android-7.0-changes#tls-ssl): confiança padrão em CAs adicionadas pelo usuário.
+- [Android Emulator — rede](https://developer.android.com/studio/run/emulator-networking): significado de `10.0.2.2` no emulador.
+
 ## Modelo mental final
 
-Depois de percorrer o experimento, a forma mais útil de pensar em Android é:
+Depois de percorrer o experimento, eu separo estas responsabilidades. É um modelo conceitual para este laboratório, sem impor uma ordem universal de execução entre hostname, cadeia e pins:
 
 1. primeiro a app decide em quais CAs confiar;
 2. depois o Android valida hostname, validade e cadeia;
@@ -520,22 +546,25 @@ Depois de percorrer o experimento, a forma mais útil de pensar em Android é:
 4. o pinning compara a chave pública apresentada com os SPKIs esperados;
 5. uma falha antes dessa etapa não é pinning.
 
-Ou, de forma ainda mais curta: *trust store responde "em quais CAs eu confio?"; pinning responde "essa chave pública é uma das esperadas?"*
+Ou, de forma ainda mais curta: *trust store responde “em quais CAs eu confio?”; pinning responde “essa chave pública é uma das esperadas?”*
 
-Antes de dizer que uma app tem certificate pinning, eu preciso provar que ela já aceita a cadeia do proxy.
+Para atribuir esta falha ao pinning, eu preciso separar a rejeição da cadeia da rejeição dos pins.
+A baseline é o que me permite isolar essa diferença neste experimento.
 
-Sem essa baseline, eu posso estar chamando uma simples falha de trust store pelo nome errado.
+Isso não significa que uma app incapaz de aceitar a CA do proxy não possa conter pinning. Ela pode
+ter os dois controles, com a primeira rejeição impedindo que a execução alcance a checagem dos
+pins. Presença de pinning e causa da falha observada são perguntas diferentes.
 
 Até aqui, eu provei apenas que o pinning bloqueia um MITM de rede enquanto a app continua executando sua própria política de confiança intacta. Eu ainda não provei o que acontece quando alguém controla o processo da app ou altera o APK.
 
-Depois de provar que `nscPinned` falha por pinning real, a próxima pergunta deixa de ser "por que a conexão falha?" e passa a ser: *onde essa decisão vive dentro do APK (Android Package)?*
+Depois de provar que `nscPinned` falha por pinning real, a próxima pergunta deixa de ser “por que a conexão falha?” e passa a ser: *onde essa decisão vive dentro do APK (Android Package)?*
 
 Essa é a investigação que eu quero abrir no próximo artigo.
 
 ## Referência rápida dos termos usados
 
 | Termo | Significado |
-|---|---|
+| --- | --- |
 | Android Emulator | Emulador usado para reproduzir o device Android |
 | Burp Suite | Proxy de interceptação usado para observar tráfego HTTPS |
 | MITM (Man-in-the-Middle) | Intermediação da conexão entre cliente e servidor |
