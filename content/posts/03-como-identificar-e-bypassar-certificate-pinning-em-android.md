@@ -53,7 +53,7 @@ frida-tools **14.10.4**, apktool **3.0.3** e JADX **1.5.5**. O `frida-server` j�
 com privilégios de root; ele é o componente no device que permite ao cliente Frida instrumentar
 o processo. Ter o proxy funcionando, por si só, não fornece esse acesso.
 
-A preparação está descrita em [Ambiente do laboratório](#TODO-link-github-docs-00-environment). Antes dos comandos,
+A preparação está descrita em [Ambiente do laboratório](#TODO-link-github-readme-environment-setup). Antes dos comandos,
 eu carrego os caminhos do SDK Android e do Java:
 
 ```bash

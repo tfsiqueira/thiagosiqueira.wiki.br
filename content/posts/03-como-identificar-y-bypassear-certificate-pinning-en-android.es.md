@@ -47,7 +47,7 @@ Los comandos de este artículo parten de la raíz del proyecto, con los APKs ya 
 
 Uso un emulador Android API 36 con root, OkHttp **4.12.0**, Frida y `frida-server` **17.17.0**, frida-tools **14.10.4**, apktool **3.0.3** y JADX **1.5.5**. El `frida-server` ya está en ejecución con privilegios de root; es el componente en el device que le permite al cliente Frida instrumentar el proceso. Tener el proxy funcionando, por sí solo, no da ese acceso.
 
-La preparación está descrita en [Entorno del laboratorio](#TODO-link-github-docs-00-environment). Antes de los comandos, cargo las rutas del SDK de Android y de Java:
+La preparación está descrita en [Entorno del laboratorio](#TODO-link-github-readme-environment-setup). Antes de los comandos, cargo las rutas del SDK de Android y de Java:
 
 ```bash
 source scripts/lab-env.sh
