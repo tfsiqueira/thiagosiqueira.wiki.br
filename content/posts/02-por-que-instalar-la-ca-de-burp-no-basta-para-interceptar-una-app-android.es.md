@@ -511,7 +511,7 @@ Estos puntos van a ganar más peso práctico cuando la serie llegue a instrument
 
 ## Materiales y referencias para reproducir esto
 
-Los experimentos dependen de la API y de los flavors de este laboratorio. Los archivos de apoyo incluyen la [API HTTPS](#TODO-link-github-lab-api-readme), la [app Android](#TODO-link-github-lab-android-app-readme), la [preparación del entorno](#TODO-link-github-docs-00-environment) y el [guión completo de reproducción](#TODO-link-github-docs-12-complete-lab-story).
+Los experimentos dependen de la API y de los flavors de este laboratorio. Los archivos de apoyo incluyen la [API HTTPS](#TODO-link-github-lab-api-readme), la [app Android](#TODO-link-github-lab-android-app-readme), la [preparación del entorno](#TODO-link-github-readme-environment-setup) y el [guión completo de reproducción](#TODO-link-github-readme-full-walkthrough).
 
 Para armar una copia propia, generar claves nuevas no basta: los pines de los XML tienen que acompañar el SPKI de tus claves, y la CA del Burp declarada en `debugOverrides` tiene que ser la de tu proxy. Los hashes y las capturas de este texto pertenecen a la ejecución documentada; no son valores que cualquier instalación nueva deba copiar sin verificar. En los flavors de este artículo, cambio los pines declarados en `<pin-set>` según las claves generadas y reconstruyo los APKs antes de comparar los resultados.
 

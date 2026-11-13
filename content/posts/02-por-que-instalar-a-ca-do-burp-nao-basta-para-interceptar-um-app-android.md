@@ -520,8 +520,8 @@ Esses pontos vão ganhar mais peso prático quando a série chegar a instrumenta
 
 Os experimentos dependem da API e das flavors deste laboratório. Os arquivos de apoio incluem
 a [API HTTPS](#TODO-link-github-lab-api-readme), o [app Android](#TODO-link-github-lab-android-app-readme), a
-[preparação do ambiente](#TODO-link-github-docs-00-environment) e o
-[roteiro completo de reprodução](#TODO-link-github-docs-12-complete-lab-story).
+[preparação do ambiente](#TODO-link-github-readme-environment-setup) e o
+[roteiro completo de reprodução](#TODO-link-github-readme-full-walkthrough).
 
 Para montar uma cópia própria, gerar novas chaves não basta: os pins dos XMLs precisam acompanhar
 o SPKI das suas chaves, e a CA do Burp declarada em `debugOverrides` precisa ser a do seu proxy.
