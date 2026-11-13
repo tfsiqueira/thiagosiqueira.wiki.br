@@ -625,6 +625,8 @@ Because of that, two certificates can:
 
 In TLS, trusting a domain doesn't mean trusting a single isolated file. It means verifying that the requested hostname appears in the leaf, and trusting a path of signatures that ends at a trust anchor already accepted locally by the client.
 
+That's the foundation I'll reuse in the next articles, when the TLS client stops being a generic browser and becomes an Android app with an extra check: certificate pinning.
+
 ## Quick reference for the terms used
 
 | Term | Meaning |

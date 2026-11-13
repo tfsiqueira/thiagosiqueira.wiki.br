@@ -625,6 +625,8 @@ Por eso, dos certificados pueden:
 
 En TLS, confiar en un dominio no significa confiar en un archivo aislado. Significa verificar que el hostname solicitado aparece en el leaf y confiar en un camino de firmas que termina en una trust anchor ya aceptada localmente por el cliente.
 
+Esa es la base que voy a reutilizar en los próximos artículos, cuando el cliente TLS deje de ser un navegador genérico y pase a ser una app Android con una verificación adicional: certificate pinning.
+
 ## Referencia rápida de los términos usados
 
 | Término | Significado |
