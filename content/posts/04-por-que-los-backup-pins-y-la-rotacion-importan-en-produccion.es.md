@@ -356,6 +356,13 @@ por el riesgo de que los cambios en el servidor dejen a los clientes sin conecti
 usa la restricción, el documento destaca los pines de backup y la expiración entre los cuidados
 operacionales.
 
+Este riesgo no es exclusivo de Android: la web ya pasó por él a escala real. El HTTP Public Key
+Pinning (HPKP), estandarizado en la [RFC 7469](https://www.rfc-editor.org/rfc/rfc7469), fue
+descontinuado por los principales navegadores alrededor de 2018 después de que operadores se
+bloquearan a sí mismos el acceso a sus propios dominios al configurar pines sin una clave de
+backup viable. El experimento de este artículo reproduce, a escala de laboratorio, el mismo
+mecanismo de falla que llevó al abandono de ese estándar.
+
 Para evaluar una adopción, necesito partir de la amenaza concreta que pretendo dificultar.
 Después, necesito verificar si controlo las claves, los certificados, la terminación TLS y la
 distribución necesaria para mantener funcionando las versiones soportadas.
