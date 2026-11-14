@@ -511,7 +511,7 @@ Estos puntos van a ganar más peso práctico cuando la serie llegue a instrument
 
 ## Materiales y referencias para reproducir esto
 
-Los experimentos dependen de la API y de los flavors de este laboratorio. Los archivos de apoyo incluyen la [API HTTPS](#TODO-link-github-lab-api-readme), la [app Android](#TODO-link-github-lab-android-app-readme), la [preparación del entorno](#TODO-link-github-readme-environment-setup) y el [guión completo de reproducción](#TODO-link-github-readme-full-walkthrough).
+Los experimentos dependen de la API y de los flavors de este laboratorio. Los archivos de apoyo incluyen la [API HTTPS](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/lab/api/README.md), la [app Android](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/lab/android-app/README.md), la [preparación del entorno](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/README.md#1-preparar-o-ambiente-e-o-proxy) y el [guión completo de reproducción](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/README.md).
 
 Para armar una copia propia, generar claves nuevas no basta: los pines de los XML tienen que acompañar el SPKI de tus claves, y la CA del Burp declarada en `debugOverrides` tiene que ser la de tu proxy. Los hashes y las capturas de este texto pertenecen a la ejecución documentada; no son valores que cualquier instalación nueva deba copiar sin verificar. En los flavors de este artículo, cambio los pines declarados en `<pin-set>` según las claves generadas y reconstruyo los APKs antes de comparar los resultados.
 

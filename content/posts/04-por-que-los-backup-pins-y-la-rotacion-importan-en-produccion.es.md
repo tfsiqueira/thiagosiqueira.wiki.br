@@ -84,7 +84,7 @@ permanece igual. En los dos casos, la app recibe `HTTP 200`.
 | Clave pública | A | A |
 | Cliente que acepta solo A | HTTP 200 | HTTP 200 |
 
-Los [valores completos y certificados públicos](#TODO-link-github-evidence-article-04-certificate-comparison)
+Los [valores completos y certificados públicos](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/rotation/current/certificate-comparison.json)
 permiten revisar la comparación. La reemisión cambió el documento, pero preservó la
 correspondencia del pin. Por eso, la frase "la renovación rompió el pinning" necesita una
 pregunta adicional: **¿también cambió la clave pública?**
@@ -378,11 +378,11 @@ sustituye esos controles.
 ## Para quien quiera reproducir la investigación
 
 La demostración A → B se ejecutó con dos clientes Android y certificados emitidos por una CA
-local. La [guía opcional de reproducción](#TODO-link-github-reproducao-rotation)
+local. La [guía opcional de reproducción](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/docs/rotation.md)
 reúne los comandos, los nombres de las variantes, la preparación y los resultados esperados.
 Ninguno de estos pasos es necesario para seguir la explicación de este artículo.
 
-Las [nuevas evidencias](#TODO-link-github-evidence-article-04-readme) incluyen las capturas, los
+Las [nuevas evidencias](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/rotation/current/README.md) incluyen las capturas, los
 certificados públicos y los registros de la reemisión con la misma clave A y de la rotación A →
 B. Las discusiones sobre C, emergencias, expiración y observabilidad desarrollan sus
 consecuencias operacionales, sin representar pruebas adicionales de producción.

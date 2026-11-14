@@ -568,7 +568,7 @@ Así, hay dos verificaciones distintas: confiar en la asociación entre dominio 
 
 ## Materiales y referencias para reproducir esto
 
-Conservé los certificados públicos y la salida original en el [paquete de la cadena observada](#TODO-link-github-tls-chain-snapshot-zip). Una nueva captura del dominio puede mostrar certificados diferentes. Para estudiar exactamente estos archivos, extraigo el paquete y uso los PEMs conservados; el nombre `root-022.pem` era solo la posición en el bundle original, no un identificador estable de la CA.
+Conservé los certificados públicos y la salida original en el [paquete de la cadena observada](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/tls-chain/README.md). Una nueva captura del dominio puede mostrar certificados diferentes. Para estudiar exactamente estos archivos, extraigo el paquete y uso los PEMs conservados; el nombre `root-022.pem` era solo la posición en el bundle original, no un identificador estable de la CA.
 
 En el paquete, la root local está nombrada `amazon-root-ca-1-local.pem`. Desde la carpeta extraída, reproduzco la validación con:
 
@@ -582,7 +582,7 @@ openssl verify \
   -show_chain cert-01.pem
 ```
 
-En esta revisión, repetí la validación de los archivos conservados con OpenSSL 4.1.0 y obtuve `OK`. El [registro de validación](#TODO-link-github-validation-txt) incluye esa ejecución, los fingerprints y la verificación de la firma de la root. Los certificados tienen un período de vigencia; `OK` describe la ejecución registrada, no una promesa de vigencia futura.
+En esta revisión, repetí la validación de los archivos conservados con OpenSSL 4.1.0 y obtuve `OK`. El [registro de validación](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/tls-chain/validation.txt) incluye esa ejecución, los fingerprints y la verificación de la firma de la root. Los certificados tienen un período de vigencia; `OK` describe la ejecución registrada, no una promesa de vigencia futura.
 
 Para revisar las reglas usadas:
 

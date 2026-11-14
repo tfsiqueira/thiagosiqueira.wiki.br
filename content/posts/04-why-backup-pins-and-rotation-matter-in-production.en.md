@@ -83,7 +83,7 @@ stays the same. In both cases, the app gets `HTTP 200`.
 | Public key | A | A |
 | Client that accepts only A | HTTP 200 | HTTP 200 |
 
-The [full values and public certificates](#TODO-link-github-evidence-article-04-certificate-comparison)
+The [full values and public certificates](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/rotation/current/certificate-comparison.json)
 let you check the comparison. The reissue changed the document but preserved the pin match.
 That's why the claim "the renewal broke pinning" needs a follow-up question: **did the public
 key also change?**
@@ -365,11 +365,11 @@ controls.
 ## For anyone who wants to reproduce the investigation
 
 The A → B demonstration was run with two Android clients and certificates issued by a local CA.
-The [optional reproduction guide](#TODO-link-github-reproducao-rotation)
+The [optional reproduction guide](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/docs/rotation.md)
 gathers the commands, variant names, setup, and expected results. None of these steps are
 necessary to follow this article's explanation.
 
-The [new evidence](#TODO-link-github-evidence-article-04-readme) includes the screenshots, the
+The [new evidence](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/rotation/current/README.md) includes the screenshots, the
 public certificates, and the logs from the reissue with the same key A and from the A → B
 rotation. The discussions about C, emergencies, expiration, and observability develop their
 operational consequences without representing additional production tests.

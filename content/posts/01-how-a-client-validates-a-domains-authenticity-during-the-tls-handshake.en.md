@@ -568,7 +568,7 @@ So there are two distinct checks: trusting the association between domain and pu
 
 ## Materials and references to reproduce this
 
-I preserved the public certificates and the original output in the [observed chain package](#TODO-link-github-tls-chain-snapshot-zip). A fresh capture of the domain may show different certificates. To study these exact files, I extract the package and use the preserved PEMs; the name `root-022.pem` was only its position in the original bundle, not a stable identifier for the CA.
+I preserved the public certificates and the original output in the [observed chain package](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/tls-chain/README.md). A fresh capture of the domain may show different certificates. To study these exact files, I extract the package and use the preserved PEMs; the name `root-022.pem` was only its position in the original bundle, not a stable identifier for the CA.
 
 In the package, the local root is named `amazon-root-ca-1-local.pem`. From the extracted folder, I reproduce the validation with:
 
@@ -582,7 +582,7 @@ openssl verify \
   -show_chain cert-01.pem
 ```
 
-For this revision, I repeated the validation of the preserved files with OpenSSL 4.1.0 and got `OK`. The [validation log](#TODO-link-github-validation-txt) includes that run, the fingerprints, and the check of the root's signature. Certificates have a validity period; `OK` describes the run on record, not a promise about future validity.
+For this revision, I repeated the validation of the preserved files with OpenSSL 4.1.0 and got `OK`. The [validation log](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/tls-chain/validation.txt) includes that run, the fingerprints, and the check of the root's signature. Certificates have a validity period; `OK` describes the run on record, not a promise about future validity.
 
 To check the rules used:
 

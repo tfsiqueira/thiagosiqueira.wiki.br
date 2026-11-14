@@ -511,7 +511,7 @@ These points will carry more practical weight once the series gets to pinning in
 
 ## Materials and references to reproduce this
 
-The experiments depend on this lab's API and flavors. The supporting files include the [HTTPS API](#TODO-link-github-lab-api-readme), the [Android app](#TODO-link-github-lab-android-app-readme), the [environment setup](#TODO-link-github-readme-environment-setup), and the [complete reproduction walkthrough](#TODO-link-github-readme-full-walkthrough).
+The experiments depend on this lab's API and flavors. The supporting files include the [HTTPS API](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/lab/api/README.md), the [Android app](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/lab/android-app/README.md), the [environment setup](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/README.md#1-preparar-o-ambiente-e-o-proxy), and the [complete reproduction walkthrough](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/README.md).
 
 To build your own copy, generating new keys isn't enough: the pins in the XMLs need to track the SPKI of your keys, and the Burp CA declared in `debugOverrides` needs to be your proxy's. The hashes and captures in this text belong to the documented run; they aren't values any fresh install should copy without checking. For the flavors in this article, I change the pins declared in `<pin-set>` to match the generated keys and rebuild the APKs before comparing results.
 

@@ -519,9 +519,9 @@ Esses pontos vão ganhar mais peso prático quando a série chegar a instrumenta
 ## Materiais e referências para reproduzir
 
 Os experimentos dependem da API e das flavors deste laboratório. Os arquivos de apoio incluem
-a [API HTTPS](#TODO-link-github-lab-api-readme), o [app Android](#TODO-link-github-lab-android-app-readme), a
-[preparação do ambiente](#TODO-link-github-readme-environment-setup) e o
-[roteiro completo de reprodução](#TODO-link-github-readme-full-walkthrough).
+a [API HTTPS](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/lab/api/README.md), o [app Android](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/lab/android-app/README.md), a
+[preparação do ambiente](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/README.md#1-preparar-o-ambiente-e-o-proxy) e o
+[roteiro completo de reprodução](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/README.md).
 
 Para montar uma cópia própria, gerar novas chaves não basta: os pins dos XMLs precisam acompanhar
 o SPKI das suas chaves, e a CA do Burp declarada em `debugOverrides` precisa ser a do seu proxy.

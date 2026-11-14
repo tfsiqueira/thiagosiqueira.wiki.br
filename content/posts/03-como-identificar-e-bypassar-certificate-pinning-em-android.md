@@ -53,7 +53,7 @@ frida-tools **14.10.4**, apktool **3.0.3** e JADX **1.5.5**. O `frida-server` j�
 com privilégios de root; ele é o componente no device que permite ao cliente Frida instrumentar
 o processo. Ter o proxy funcionando, por si só, não fornece esse acesso.
 
-A preparação está descrita em [Ambiente do laboratório](#TODO-link-github-readme-environment-setup). Antes dos comandos,
+A preparação está descrita em [Ambiente do laboratório](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/README.md#1-preparar-o-ambiente-e-o-proxy). Antes dos comandos,
 eu carrego os caminhos do SDK Android e do Java:
 
 ```bash
@@ -603,7 +603,7 @@ original volta a ser usada na próxima execução. A sequência observada fica:
 *O reinício sem hook restaura a rejeição. A instrumentação anterior não alterou o APK instalado.*
 
 As telas, os XMLs e a linha do tempo dessa validação estão nas
-[evidências complementares](#TODO-link-github-evidence-article-03-review-readme). O log do Frida registra a
+[evidências complementares](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/README.md). O log do Frida registra a
 execução do hook para o hostname da API; a resposta exibida pela app contém o horário da nova
 requisição. A captura do histórico do Burp permite correlacionar esse mesmo payload com o HTTP observado no proxy.
 

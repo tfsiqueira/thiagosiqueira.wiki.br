@@ -597,7 +597,7 @@ com `openssl verify` testa a primeira parte; não reproduz uma prova de posse nu
 ## Materiais e referências para reproduzir
 
 Preservei os certificados públicos e a saída original no
-[pacote da cadeia observada](#TODO-link-github-tls-chain-snapshot-zip). Uma nova captura
+[pacote da cadeia observada](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/tls-chain/README.md). Uma nova captura
 do domínio pode apresentar certificados diferentes. Para estudar exatamente estes arquivos,
 extraio o pacote e uso os PEMs preservados; o nome `root-022.pem` era apenas a posição no bundle
 original, não um identificador estável da CA.
@@ -616,7 +616,7 @@ openssl verify \
 ```
 
 Na revisão, repeti a validação dos arquivos preservados com OpenSSL 4.1.0 e obtive `OK`.
-O [registro de validação](#TODO-link-github-validation-txt) inclui essa execução,
+O [registro de validação](https://github.com/tfsiqueira/lab-ssl-pinning-android/blob/v1.0.1/evidence/tls-chain/validation.txt) inclui essa execução,
 os fingerprints e a conferência da assinatura da root. Certificados têm validade temporal;
 `OK` descreve a execução registrada, não uma promessa de validade futura.
 
