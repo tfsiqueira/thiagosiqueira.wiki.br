@@ -167,7 +167,7 @@ Não há uma prioridade que obrigue o Android a tentar A antes de permitir B.
 O pin de B já participa da decisão desde que a política esteja em uso. Seu papel de backup
 vem do planejamento: o servidor ainda usa A, mas o cliente está preparado para aceitar B.
 O código da plataforma aplica essa correspondência em
-[`NetworkSecurityTrustManager.checkPins`](https://github.com/aosp-mirror/platform_frameworks_base/blob/master/core/java/android/security/net/config/NetworkSecurityTrustManager.java).
+[`NetworkSecurityTrustManager.checkPins`](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/core/java/android/security/net/config/NetworkSecurityTrustManager.java#132).
 
 Também não é necessário que o servidor apresente as duas chaves ao mesmo tempo para esse
 experimento funcionar. Ele passa de um certificado com A para outro com B; a política do

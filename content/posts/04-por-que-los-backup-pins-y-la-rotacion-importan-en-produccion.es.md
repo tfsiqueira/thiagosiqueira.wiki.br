@@ -173,7 +173,7 @@ B.
 El pin de B ya participa en la decisión desde que la política está en uso. Su papel de backup
 viene de la planificación: el servidor todavía usa A, pero el cliente está preparado para
 aceptar B. El código de la plataforma aplica esa correspondencia en
-[`NetworkSecurityTrustManager.checkPins`](https://github.com/aosp-mirror/platform_frameworks_base/blob/master/core/java/android/security/net/config/NetworkSecurityTrustManager.java).
+[`NetworkSecurityTrustManager.checkPins`](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/core/java/android/security/net/config/NetworkSecurityTrustManager.java#132).
 
 Tampoco es necesario que el servidor presente las dos claves al mismo tiempo para que este
 experimento funcione. Pasa de un certificado con A a otro con B; la política del cliente acepta

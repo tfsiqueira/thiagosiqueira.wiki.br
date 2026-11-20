@@ -167,7 +167,7 @@ priority forcing Android to try A before allowing B.
 B's pin already participates in the decision as soon as the policy is in use. Its backup role
 comes from planning: the server still uses A, but the client is prepared to accept B. The
 platform code applies that match in
-[`NetworkSecurityTrustManager.checkPins`](https://github.com/aosp-mirror/platform_frameworks_base/blob/master/core/java/android/security/net/config/NetworkSecurityTrustManager.java).
+[`NetworkSecurityTrustManager.checkPins`](https://android.googlesource.com/platform/frameworks/base/+/1cdfff555f4a21f71ccc978290e2e212e2f8b168/core/java/android/security/net/config/NetworkSecurityTrustManager.java#132).
 
 It's also not necessary for the server to present both keys at the same time for this
 experiment to work. It moves from a certificate with A to another with B; the client's policy
